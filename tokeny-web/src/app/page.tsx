@@ -14,7 +14,9 @@ export default function MarketPage() {
     try {
       const res = await fetch("/api/listings").then(r => r.json());
       setItems(res.items ?? []);
-    } catch (e:any) { setErr(e.message); }
+    } catch (e: unknown) {
+      setErr((e as Error).message);
+    }
     finally { setLoading(false); }
   };
 
