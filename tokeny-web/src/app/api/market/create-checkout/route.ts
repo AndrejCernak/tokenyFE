@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { callBackend } from "../../_utils";
+import { callBackend, BackendError } from "../../_utils";
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
@@ -13,7 +13,8 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(body),
     });
     return NextResponse.json(data);
-  } catch (e: any) {
-    return NextResponse.json(e.body ?? { message: e.message }, { status: e.status ?? 500 });
+  } catch (e: unknown) {
+    const err = e as BackendError;
+    return NextResponse.json(err.body ?? { message: err.message }, { status: err.status ?? 500 });
   }
 }

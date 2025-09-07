@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { callBackend } from "../_utils";
+import { callBackend, BackendError } from "../_utils";
 
 export async function GET() {
   try {
     const data = await callBackend("/listings", { method: "GET" });
     return NextResponse.json(data);
-  } catch (e: any) {
-    return NextResponse.json(e.body ?? { message: e.message }, { status: e.status ?? 500 });
+  } catch (e: unknown) {
+    const err = e as BackendError;
+    return NextResponse.json(err.body ?? { message: err.message }, { status: err.status ?? 500 });
   }
 }
 
@@ -18,7 +19,8 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(body),
     });
     return NextResponse.json(data);
-  } catch (e: any) {
-    return NextResponse.json(e.body ?? { message: e.message }, { status: e.status ?? 500 });
+  } catch (e: unknown) {
+    const err = e as BackendError;
+    return NextResponse.json(err.body ?? { message: err.message }, { status: err.status ?? 500 });
   }
 }

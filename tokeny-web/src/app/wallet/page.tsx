@@ -23,8 +23,8 @@ export default function Wallet() {
         }
         const json = (await res.json()) as ApiWalletMeResponse;
         if (mounted) setMe(json);
-      } catch (e: any) {
-        if (mounted) setError(e?.message ?? 'Neznáma chyba');
+      } catch (e: unknown) {
+        if (mounted) setError((e as Error)?.message ?? 'Neznáma chyba');
       }
     })();
     return () => { mounted = false; };

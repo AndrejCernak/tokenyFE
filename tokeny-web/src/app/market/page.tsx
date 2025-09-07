@@ -35,8 +35,9 @@ export default function MarketPage() {
         }
         const json = (await res.json()) as ApiListingsResponse;
         if (mounted) setListings(json);
-      } catch (e: any) {
-        if (mounted) setError(e?.message ?? 'Neznáma chyba');
+      } catch (e: unknown) {
+        if (mounted)
+          setError((e as Error)?.message ?? 'Neznáma chyba');
       }
     })();
     return () => { mounted = false; };
@@ -64,8 +65,8 @@ export default function MarketPage() {
       } else {
         alert('Server nevrátil URL pre checkout.');
       }
-    } catch (e: any) {
-      alert(e?.message ?? 'Chyba pri vytváraní checkoutu');
+    } catch (e: unknown) {
+      alert((e as Error)?.message ?? 'Chyba pri vytváraní checkoutu');
     } finally {
       setLoading(false);
     }
@@ -90,8 +91,8 @@ export default function MarketPage() {
       } else {
         alert('Server nevrátil URL pre checkout.');
       }
-    } catch (e: any) {
-      alert(e?.message ?? 'Chyba pri P2P checkoute');
+    } catch (e: unknown) {
+      alert((e as Error)?.message ?? 'Chyba pri P2P checkoute');
     } finally {
       setLoading(false);
     }

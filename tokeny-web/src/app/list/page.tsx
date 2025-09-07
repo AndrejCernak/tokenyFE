@@ -1,16 +1,29 @@
 "use client";
 import { useEffect, useState } from "react";
 
+interface Token {
+  id: string;
+  status: string;
+  remainingMinutes: number;
+}
+
 export default function ListPage() {
-  const [tokens, setTokens] = useState<any[]>([]);
+  const [tokens, setTokens] = useState<Token[]>([]);
   const [tokenId, setTokenId] = useState("");
   const [price, setPrice] = useState("15.00");
   const [msg, setMsg] = useState<string>();
 
   useEffect(() => {
-    fetch("/api/wallet/me").then(r => r.json()).then(d => {
-      setTokens((d.tokens||[]).filter((t:any)=>t.status==="owned" && t.remainingMinutes===60));
-    });
+    fetch("/api/wallet/me")
+      .then(r => r.json())
+      .then(d => {
+        const allTokens = (d.tokens ?? []) as Token[];
+        setTokens(
+          allTokens.filter(
+            t => t.status === "owned" && t.remainingMinutes === 60,
+          ),
+        );
+      });
   }, []);
 
   const submit = async () => {
