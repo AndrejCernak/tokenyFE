@@ -85,6 +85,28 @@ export default function BurzaTokenovPage() {
     setListings(data?.items || []);
   }, [backend]);
 
+
+ useEffect(() => {
+  const init = async () => {
+    if (!isSignedIn || !user) return;
+    try {
+      const jwt = await getToken();
+      await fetch(`${backend}/friday/sync-user`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${jwt}`,
+        },
+      });
+    } catch (e) {
+      console.error("sync-user FE error:", e);
+    }
+  };
+  init();
+}, [isSignedIn, user, backend, getToken]);
+
+
+
   useEffect(() => {
     fetchSupply();
     fetchListings();
