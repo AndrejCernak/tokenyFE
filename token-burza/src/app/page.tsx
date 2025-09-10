@@ -2,6 +2,7 @@
 
 import { SignedIn, SignedOut, SignInButton, useUser, useAuth } from "@clerk/nextjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type FridayToken = {
   id: string;
@@ -37,8 +38,15 @@ type Listing = {
 export default function BurzaTokenovPage() {
   const { user, isSignedIn } = useUser();
   const { getToken } = useAuth();
+  const router = useRouter();
+  const search = useSearchParams();
+
   const role = (user?.publicMetadata.role as string) || "client";
 
+  // DÔLEŽITÉ: nastav si NEXT_PUBLIC_BACKEND_URL na BASE URL backendu (bez /friday)
+  // Príklady:
+  //   Lokálne:  http://localhost:3001
+  //   Produkcia: https://api.tvoja-domena.sk
   const backend = process.env.NEXT_PUBLIC_BACKEND_URL!;
   const currentYear = useMemo(() => new Date().getFullYear(), []);
   const [supply, setSupply] = useState<SupplyInfo | null>(null);
@@ -48,7 +56,6 @@ export default function BurzaTokenovPage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [listPrice, setListPrice] = useState<Record<string, string>>({});
   const [buyingId, setBuyingId] = useState<string | null>(null);
-
 
   const tokensActive = useMemo(
     () => (balance?.tokens || []).filter((t) => t.status === "active" && t.minutesRemaining > 0),
@@ -85,27 +92,25 @@ export default function BurzaTokenovPage() {
     setListings(data?.items || []);
   }, [backend]);
 
-
- useEffect(() => {
-  const init = async () => {
-    if (!isSignedIn || !user) return;
-    try {
-      const jwt = await getToken();
-      await fetch(`${backend}/friday/sync-user`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${jwt}`,
-        },
-      });
-    } catch (e) {
-      console.error("sync-user FE error:", e);
-    }
-  };
-  init();
-}, [isSignedIn, user, backend, getToken]);
-
-
+  // sync-user (ak ho máš na BE) – nech sa vytvorí/aktualizuje účet v DB
+  useEffect(() => {
+    const init = async () => {
+      if (!isSignedIn || !user) return;
+      try {
+        const jwt = await getToken();
+        await fetch(`${backend}/friday/sync-user`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${jwt}`,
+          },
+        });
+      } catch (e) {
+        console.error("sync-user FE error:", e);
+      }
+    };
+    init();
+  }, [isSignedIn, user, backend, getToken]);
 
   useEffect(() => {
     fetchSupply();
@@ -121,9 +126,9 @@ export default function BurzaTokenovPage() {
     };
   }, [getToken]);
 
+  // === PRIMÁRNY NÁKUP CEZ STRIPE CHECKOUT ===
   const handlePrimaryBuy = useCallback(async () => {
-    if (!user) return;
-    if (!supply) return;
+    if (!user || !supply) return;
 
     const q = Number.isFinite(qty) && qty > 0 ? qty : 1;
 
@@ -136,45 +141,60 @@ export default function BurzaTokenovPage() {
       return;
     }
 
-    const res = await fetch(`${backend}/friday/purchase`, {
+    const res = await fetch(`${backend}/friday/payments/checkout/treasury`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId: user.id, quantity: q, year: currentYear }),
     });
     const data = await res.json();
-    if (res.ok && data?.success) {
-      alert(`Zakúpené ${q} token${q === 1 ? "" : "y"} za ${Number(data.unitPrice).toFixed(2)} €/ks ✅`);
-      await Promise.all([fetchBalance(), fetchSupply()]);
+    if (res.ok && data?.url) {
+      window.location.href = data.url; // redirect na Stripe Checkout
     } else {
-      alert(data?.message || "Nákup zlyhal.");
+      alert(data?.message || "Vytvorenie platby zlyhalo.");
     }
-  }, [backend, user, qty, maxCanBuy, currentYear, fetchBalance, fetchSupply, supply]);
+  }, [backend, user, qty, maxCanBuy, currentYear, supply]);
 
+  // === KÚPA LISTINGU CEZ STRIPE CHECKOUT ===
+  const handleBuyListing = useCallback(
+    async (listingId: string) => {
+      if (!user) return;
+      try {
+        setBuyingId(listingId);
+        const res = await fetch(`${backend}/friday/payments/checkout/listing`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ buyerId: user.id, listingId }),
+        });
+        const data = await res.json();
+        if (res.ok && data?.url) {
+          window.location.href = data.url; // redirect na Stripe Checkout
+        } else {
+          alert(data?.message || "Kúpa zlyhala.");
+        }
+      } finally {
+        setBuyingId(null);
+      }
+    },
+    [backend, user]
+  );
 
-  const handleBuyListing = useCallback(async (listingId: string) => {
-  if (!user) return;
-  try {
-    setBuyingId(listingId);
-    const res = await fetch(`${backend}/friday/buy-listing`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        // Ak budeš kontrolovať token na BE, odkomentuj:
-        // Authorization: `Bearer ${await getToken()}`,
-      },
-      body: JSON.stringify({ buyerId: user.id, listingId }),
-    });
-    const data = await res.json();
-    if (res.ok && data?.success) {
-      alert(`Kúpený token ${data.tokenId.slice(0,8)}… za ${Number(data.priceEur).toFixed(2)} € ✅`);
-      await Promise.all([fetchBalance(), fetchListings()]);
-    } else {
-      alert(data?.message || "Kúpa zlyhala.");
+  // === PO NÁVRATE Z CHECKOUTU ===
+  useEffect(() => {
+    const status = search.get("payment");
+    if (status === "success") {
+      // webhook už spravil fulfillment – tu len obnovíme dáta
+      Promise.allSettled([fetchBalance(), fetchSupply(), fetchListings()]);
+      // odstráň query param, nech nebliká pri refreši
+      const url = new URL(window.location.href);
+      url.searchParams.delete("payment");
+      router.replace(url.pathname + url.search, { scroll: false });
     }
-  } finally {
-    setBuyingId(null);
-  }
-}, [backend, user, fetchBalance, fetchListings /*, getToken*/]);
+    if (status === "cancel") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("payment");
+      router.replace(url.pathname + url.search, { scroll: false });
+    }
+  }, [search, router, fetchBalance, fetchListings, fetchSupply]);
 
   const handleListToken = useCallback(
     async (tokenId: string) => {
@@ -219,9 +239,6 @@ export default function BurzaTokenovPage() {
     },
     [backend, user, fetchBalance, fetchListings]
   );
-
-  // POZOR: backend aktuálne NEMÁ /friday/buy-listing → nekupujeme z FE
-  // Ak doplníš endpoint, ľahko to aktivuješ späť.
 
   const handleAdminMint = useCallback(async () => {
     if (role !== "admin") return;
@@ -324,127 +341,126 @@ export default function BurzaTokenovPage() {
             </div>
           </section>
 
-         {role === "admin" && (
-  <section className="rounded-2xl bg-white/80 backdrop-blur shadow-sm border border-stone-200 p-5 mb-6">
-    <h2 className="text-lg font-semibold">Admin – pokladnica</h2>
-    <p className="text-sm text-stone-600 mt-1">
-      Aktuálna cena: <span className="font-semibold">{supply ? supply.priceEur.toFixed(2) : "…"} €</span> •
-      V pokladnici: <span className="font-semibold">{supply?.treasuryAvailable ?? 0}</span> tokenov (rok {currentYear})
-    </p>
+          {role === "admin" && (
+            <section className="rounded-2xl bg-white/80 backdrop-blur shadow-sm border border-stone-200 p-5 mb-6">
+              <h2 className="text-lg font-semibold">Admin – pokladnica</h2>
+              <p className="text-sm text-stone-600 mt-1">
+                Aktuálna cena: <span className="font-semibold">{supply ? supply.priceEur.toFixed(2) : "…"} €</span> •
+                V pokladnici: <span className="font-semibold">{supply?.treasuryAvailable ?? 0}</span> tokenov (rok {currentYear})
+              </p>
 
-    {/* Mintovanie */}
-    <div className="mt-4 flex flex-col gap-3 max-w-sm">
-      <input
-        type="number"
-        min={1}
-        value={qty}
-        onChange={(e) => setQty(parseInt(e.target.value || "1", 10))}
-        className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white"
-        placeholder="Počet tokenov"
-      />
-      <input
-        type="number"
-        min={1}
-        step="0.01"
-        value={supply?.priceEur ?? ""}
-        onChange={(e) =>
-          setSupply((s) =>
-            s
-              ? { ...s, priceEur: parseFloat(e.target.value || "0") }
-              : {
-                  year: currentYear,
-                  priceEur: parseFloat(e.target.value || "0"),
-                  treasuryAvailable: 0,
-                  totalMinted: 0,
-                  totalSold: 0,
-                }
-          )
-        }
-        className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white"
-        placeholder="Cena za token (€)"
-      />
+              {/* Mintovanie */}
+              <div className="mt-4 flex flex-col gap-3 max-w-sm">
+                <input
+                  type="number"
+                  min={1}
+                  value={qty}
+                  onChange={(e) => setQty(parseInt(e.target.value || "1", 10))}
+                  className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white"
+                  placeholder="Počet tokenov"
+                />
+                <input
+                  type="number"
+                  min={1}
+                  step="0.01"
+                  value={supply?.priceEur ?? ""}
+                  onChange={(e) =>
+                    setSupply((s) =>
+                      s
+                        ? { ...s, priceEur: parseFloat(e.target.value || "0") }
+                        : {
+                            year: currentYear,
+                            priceEur: parseFloat(e.target.value || "0"),
+                            treasuryAvailable: 0,
+                            totalMinted: 0,
+                            totalSold: 0,
+                          }
+                    )
+                  }
+                  className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white"
+                  placeholder="Cena za token (€)"
+                />
 
-      <button
-        onClick={async () => {
-          const q = Number(qty);
-          const price = Number(supply?.priceEur);
-          if (!Number.isInteger(q) || q <= 0 || !Number.isFinite(price) || price <= 0) {
-            alert("Zadaj platný počet a cenu.");
-            return;
-          }
+                <button
+                  onClick={async () => {
+                    const q = Number(qty);
+                    const price = Number(supply?.priceEur);
+                    if (!Number.isInteger(q) || q <= 0 || !Number.isFinite(price) || price <= 0) {
+                      alert("Zadaj platný počet a cenu.");
+                      return;
+                    }
 
-          const res = await fetch(`${backend}/friday/admin/mint`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ quantity: q, priceEur: price }),
-          });
-          const data = await res.json();
-          if (res.ok && data?.success) {
-            alert(`Vytvorených ${q} tokenov pre rok ${currentYear} @ ${price.toFixed(2)} € ✅`);
-            await fetchSupply();
-          } else {
-            alert(data?.message || "Mint zlyhal.");
-          }
-        }}
-        className="px-4 py-2 rounded-xl bg-emerald-600 text-white shadow hover:bg-emerald-700 transition"
-      >
-        Vygenerovať tokeny
-      </button>
-    </div>
+                    const res = await fetch(`${backend}/friday/admin/mint`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ quantity: q, priceEur: price }),
+                    });
+                    const data = await res.json();
+                    if (res.ok && data?.success) {
+                      alert(`Vytvorených ${q} tokenov pre rok ${currentYear} @ ${price.toFixed(2)} € ✅`);
+                      await fetchSupply();
+                    } else {
+                      alert(data?.message || "Mint zlyhal.");
+                    }
+                  }}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 text-white shadow hover:bg-emerald-700 transition"
+                >
+                  Vygenerovať tokeny
+                </button>
+              </div>
 
-    {/* NOVÝ BLOK: Zmeniť cenu */}
-    <div className="mt-6 flex flex-col gap-3 max-w-sm">
-      <input
-        type="number"
-        min={1}
-        step="0.01"
-        placeholder="Nová cena (€)"
-        onChange={(e) => setListPrice((s) => ({ ...s, newPrice: e.target.value }))}
-        value={listPrice["newPrice"] ?? ""}
-        className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white"
-      />
-      <button
-        onClick={async () => {
-          const price = Number((listPrice["newPrice"] || "").replace(",", "."));
-          if (!Number.isFinite(price) || price <= 0) {
-            alert("Zadaj platnú cenu.");
-            return;
-          }
+              {/* Zmeniť cenu */}
+              <div className="mt-6 flex flex-col gap-3 max-w-sm">
+                <input
+                  type="number"
+                  min={1}
+                  step="0.01"
+                  placeholder="Nová cena (€)"
+                  onChange={(e) => setListPrice((s) => ({ ...s, newPrice: e.target.value }))}
+                  value={listPrice["newPrice"] ?? ""}
+                  className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white"
+                />
+                <button
+                  onClick={async () => {
+                    const price = Number((listPrice["newPrice"] || "").replace(",", "."));
+                    if (!Number.isFinite(price) || price <= 0) {
+                      alert("Zadaj platnú cenu.");
+                      return;
+                    }
 
-          const res = await fetch(`${backend}/friday/admin/set-price`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ newPrice: price, repriceTreasury: false }),
-          });
-          const data = await res.json();
-          if (res.ok && data?.success) {
-            alert(`Cena tokenov bola nastavená na ${price.toFixed(2)} € ✅`);
-            setListPrice((s) => ({ ...s, newPrice: "" }));
-            await fetchSupply();
-          } else {
-            alert(data?.message || "Zmena ceny zlyhala.");
-          }
-        }}
-        className="px-4 py-2 rounded-xl bg-green-600 text-white shadow hover:bg-green-700 transition"
-      >
-        Zmeniť cenu
-      </button>
-    </div>
+                    const res = await fetch(`${backend}/friday/admin/set-price`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ newPrice: price, repriceTreasury: false }),
+                    });
+                    const data = await res.json();
+                    if (res.ok && data?.success) {
+                      alert(`Cena tokenov bola nastavená na ${price.toFixed(2)} € ✅`);
+                      setListPrice((s) => ({ ...s, newPrice: "" }));
+                      await fetchSupply();
+                    } else {
+                      alert(data?.message || "Zmena ceny zlyhala.");
+                    }
+                  }}
+                  className="px-4 py-2 rounded-xl bg-green-600 text-white shadow hover:bg-green-700 transition"
+                >
+                  Zmeniť cenu
+                </button>
+              </div>
 
-    <div className="mt-4 flex flex-wrap gap-3">
-      <button
-        onClick={() => {
-          fetchSupply();
-          fetchListings();
-        }}
-        className="px-4 py-2 rounded-xl bg-stone-700 text-white shadow hover:bg-stone-800 transition"
-      >
-        Obnoviť
-      </button>
-    </div>
-  </section>
-)}
-
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  onClick={() => {
+                    fetchSupply();
+                    fetchListings();
+                  }}
+                  className="px-4 py-2 rounded-xl bg-stone-700 text-white shadow hover:bg-stone-800 transition"
+                >
+                  Obnoviť
+                </button>
+              </div>
+            </section>
+          )}
 
           {role !== "admin" && (
             <>
@@ -546,11 +562,13 @@ export default function BurzaTokenovPage() {
                             onClick={() => handleBuyListing(l.id)}
                             disabled={role === "admin" || user?.id === l.sellerId || buyingId === l.id}
                             className={`px-4 py-2 rounded-xl text-white shadow transition
-                              ${role === "admin" || user?.id === l.sellerId
-                                ? "bg-stone-400 cursor-not-allowed"
-                                : buyingId === l.id
+                              ${
+                                role === "admin" || user?.id === l.sellerId
+                                  ? "bg-stone-400 cursor-not-allowed"
+                                  : buyingId === l.id
                                   ? "bg-amber-400"
-                                  : "bg-amber-500 hover:bg-amber-600"}`}
+                                  : "bg-amber-500 hover:bg-amber-600"
+                              }`}
                             title={user?.id === l.sellerId ? "Nemôžeš kúpiť vlastný listing" : ""}
                           >
                             {buyingId === l.id ? "Kupujem…" : "Kúpiť"}
