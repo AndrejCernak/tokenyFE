@@ -593,7 +593,6 @@ function BurzaTokenovInner() {
   );
 }
 
-// ---- export s <Suspense> ----
 export default function BurzaTokenovPage() {
   return (
     <Suspense fallback={<div className="p-6 text-center">Načítavam…</div>}>
