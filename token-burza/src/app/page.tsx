@@ -1,9 +1,10 @@
 "use client";
 
 import { SignedIn, SignedOut, SignInButton, useUser, useAuth } from "@clerk/nextjs";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+// ---- typy ----
 type FridayToken = {
   id: string;
   issuedYear: number;
@@ -35,7 +36,8 @@ type Listing = {
   token: FridayToken;
 };
 
-export default function BurzaTokenovPage() {
+// ---- vnútorná stránka (obsah) ----
+function BurzaTokenovInner() {
   const { user, isSignedIn } = useUser();
   const { getToken } = useAuth();
   const router = useRouter();
@@ -43,10 +45,6 @@ export default function BurzaTokenovPage() {
 
   const role = (user?.publicMetadata.role as string) || "client";
 
-  // DÔLEŽITÉ: nastav si NEXT_PUBLIC_BACKEND_URL na BASE URL backendu (bez /friday)
-  // Príklady:
-  //   Lokálne:  http://localhost:3001
-  //   Produkcia: https://api.tvoja-domena.sk
   const backend = process.env.NEXT_PUBLIC_BACKEND_URL!;
   const currentYear = useMemo(() => new Date().getFullYear(), []);
   const [supply, setSupply] = useState<SupplyInfo | null>(null);
@@ -63,7 +61,6 @@ export default function BurzaTokenovPage() {
   );
   const tokensListed = useMemo(() => (balance?.tokens || []).filter((t) => t.status === "listed"), [balance]);
 
-  // limit 20 ks / user / rok – rátame len držané (active + listed)
   const ownedThisYear = useMemo(
     () =>
       (balance?.tokens || []).filter(
@@ -92,7 +89,6 @@ export default function BurzaTokenovPage() {
     setListings(data?.items || []);
   }, [backend]);
 
-  // sync-user (ak ho máš na BE) – nech sa vytvorí/aktualizuje účet v DB
   useEffect(() => {
     const init = async () => {
       if (!isSignedIn || !user) return;
@@ -118,7 +114,6 @@ export default function BurzaTokenovPage() {
     if (isSignedIn) fetchBalance();
   }, [isSignedIn, fetchSupply, fetchBalance, fetchListings]);
 
-  // Helper: auth headers pre admin volania
   const authHeaders = useCallback(async () => {
     return {
       "Content-Type": "application/json",
@@ -126,12 +121,11 @@ export default function BurzaTokenovPage() {
     };
   }, [getToken]);
 
-  // === PRIMÁRNY NÁKUP CEZ STRIPE CHECKOUT ===
+  // === STRIPE Treasury Checkout ===
   const handlePrimaryBuy = useCallback(async () => {
     if (!user || !supply) return;
 
     const q = Number.isFinite(qty) && qty > 0 ? qty : 1;
-
     if (q > maxCanBuy) {
       alert(`Maximálne môžeš dokúpiť ešte ${maxCanBuy} tokenov pre rok ${currentYear}.`);
       return;
@@ -148,13 +142,13 @@ export default function BurzaTokenovPage() {
     });
     const data = await res.json();
     if (res.ok && data?.url) {
-      window.location.href = data.url; // redirect na Stripe Checkout
+      window.location.href = data.url;
     } else {
       alert(data?.message || "Vytvorenie platby zlyhalo.");
     }
   }, [backend, user, qty, maxCanBuy, currentYear, supply]);
 
-  // === KÚPA LISTINGU CEZ STRIPE CHECKOUT ===
+  // === STRIPE Listing Checkout ===
   const handleBuyListing = useCallback(
     async (listingId: string) => {
       if (!user) return;
@@ -167,7 +161,7 @@ export default function BurzaTokenovPage() {
         });
         const data = await res.json();
         if (res.ok && data?.url) {
-          window.location.href = data.url; // redirect na Stripe Checkout
+          window.location.href = data.url;
         } else {
           alert(data?.message || "Kúpa zlyhala.");
         }
@@ -178,13 +172,11 @@ export default function BurzaTokenovPage() {
     [backend, user]
   );
 
-  // === PO NÁVRATE Z CHECKOUTU ===
+  // === Spracovanie návratu z Checkoutu ===
   useEffect(() => {
     const status = search.get("payment");
     if (status === "success") {
-      // webhook už spravil fulfillment – tu len obnovíme dáta
       Promise.allSettled([fetchBalance(), fetchSupply(), fetchListings()]);
-      // odstráň query param, nech nebliká pri refreši
       const url = new URL(window.location.href);
       url.searchParams.delete("payment");
       router.replace(url.pathname + url.search, { scroll: false });
@@ -291,6 +283,7 @@ export default function BurzaTokenovPage() {
     }
   }, [backend, role, fetchSupply, authHeaders]);
 
+  // === RENDER ===
   return (
     <main className="min-h-screen bg-gradient-to-br from-stone-100 via-emerald-50 to-amber-50 text-stone-800">
       <div className="max-w-5xl mx-auto p-6">
@@ -597,5 +590,14 @@ export default function BurzaTokenovPage() {
         </SignedIn>
       </div>
     </main>
+  );
+}
+
+// ---- export s <Suspense> ----
+export default function BurzaTokenovPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-center">Načítavam…</div>}>
+      <BurzaTokenovInner />
+    </Suspense>
   );
 }
