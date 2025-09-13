@@ -1,9 +1,11 @@
 "use client";
+
+import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useClerk } from "@clerk/nextjs";
 
-export default function SSOCallbackPage() {
+function CallbackInner() {
   const search = useSearchParams();
   const router = useRouter();
   const { setActive } = useClerk();
@@ -25,4 +27,12 @@ export default function SSOCallbackPage() {
   }, [search, router, setActive]);
 
   return <p>Prihlasujem…</p>;
+}
+
+export default function SSOCallbackPage() {
+  return (
+    <Suspense fallback={<p>Načítavam…</p>}>
+      <CallbackInner />
+    </Suspense>
+  );
 }
