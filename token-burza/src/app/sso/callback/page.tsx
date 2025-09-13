@@ -12,9 +12,11 @@ function CallbackInner() {
   useEffect(() => {
     const token = search.get("token");
     if (token) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setActive({ token } as any)
         .then(() => router.replace("/burza"))
         .catch(() => router.replace("/"));
+
     }
   }, [search, router, setActive]);
 
