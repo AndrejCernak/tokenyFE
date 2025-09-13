@@ -1,11 +1,9 @@
 "use client";
-
-import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useClerk } from "@clerk/nextjs";
 
-function CallbackInner() {
+export default function SSOCallbackPage() {
   const search = useSearchParams();
   const router = useRouter();
   const { setActive } = useClerk();
@@ -15,7 +13,7 @@ function CallbackInner() {
       const sessionId = search.get("sessionId");
       if (sessionId) {
         try {
-          await setActive({ session: sessionId });
+          await setActive({ session: sessionId }); // nastaví aktívnu Clerk session
           router.replace("/burza");
         } catch (err) {
           console.error("SSO error", err);
@@ -27,12 +25,4 @@ function CallbackInner() {
   }, [search, router, setActive]);
 
   return <p>Prihlasujem…</p>;
-}
-
-export default function SSOCallbackPage() {
-  return (
-    <Suspense fallback={<p>Načítavam…</p>}>
-      <CallbackInner />
-    </Suspense>
-  );
 }
