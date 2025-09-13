@@ -10,13 +10,22 @@ function CallbackInner() {
   const { setActive } = useClerk();
 
   useEffect(() => {
-    const sessionId = search.get("sessionId");
-    if (sessionId) {
-      setActive({ session: sessionId })
-        .then(() => router.replace("/burza"))
-        .catch(() => router.replace("/"));
-    }
-  }, [search, router, setActive]);
+  const sessionId = search.get("sessionId");
+  console.log("🔑 Callback got:", sessionId);
+
+  if (sessionId) {
+    setActive({ session: sessionId })
+      .then(() => {
+        console.log("✅ setActive success");
+        router.replace("/burza");
+      })
+      .catch((err) => {
+        console.error("❌ setActive failed:", err);
+        router.replace("/");
+      });
+  }
+}, [search, router, setActive]);
+
 
   return <p>Prihlasujem…</p>;
 }
