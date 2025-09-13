@@ -12,7 +12,7 @@ function CallbackInner() {
   useEffect(() => {
     const token = search.get("token");
     if (token) {
-      setActive({ token })
+      setActive({ token } as any)
         .then(() => router.replace("/burza"))
         .catch(() => router.replace("/"));
     }
