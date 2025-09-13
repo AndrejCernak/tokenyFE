@@ -1,4 +1,5 @@
 "use client";
+
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useClerk } from "@clerk/nextjs";
@@ -13,7 +14,7 @@ export default function SSOCallbackPage() {
       const sessionId = search.get("sessionId");
       if (sessionId) {
         try {
-          await setActive({ session: sessionId }); // nastaví aktívnu Clerk session
+          await setActive({ session: sessionId });
           router.replace("/burza");
         } catch (err) {
           console.error("SSO error", err);
