@@ -1,11 +1,12 @@
 "use client";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { setActive } from "@clerk/nextjs";
+import { useClerk } from "@clerk/nextjs";
 
 export default function SSOCallbackPage() {
   const search = useSearchParams();
   const router = useRouter();
+  const { setActive } = useClerk();
 
   useEffect(() => {
     const run = async () => {
@@ -21,7 +22,7 @@ export default function SSOCallbackPage() {
       }
     };
     run();
-  }, [search, router]);
+  }, [search, router, setActive]);
 
   return <p>Prihlasujem…</p>;
 }
