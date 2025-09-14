@@ -1,10 +1,11 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSignIn } from '@clerk/nextjs';
 
-export default function SSOCallbackPage() {
+function SSOCallbackInner() {
   const { signIn, setActive, isLoaded } = useSignIn();
   const search = useSearchParams();
   const router = useRouter();
@@ -15,25 +16,27 @@ export default function SSOCallbackPage() {
 
     (async () => {
       try {
-        // Skonzumuj sign-in token (ticket)
-        const res = await signIn.create({
-          strategy: 'ticket',
-          ticket: token,
-        });
-
+        const res = await signIn.create({ strategy: 'ticket', ticket: token });
         if (res.status === 'complete' && res.createdSessionId) {
           await setActive({ session: res.createdSessionId });
           router.replace('/burza');
         } else {
-          console.error('Sign-in not complete', res);
           router.replace('/');
         }
-      } catch (e) {
-        console.error('SSO callback error:', e);
+      } catch (err) {
+        console.error('SSO callback error:', err);
         router.replace('/');
       }
     })();
   }, [isLoaded, signIn, setActive, search, router]);
 
   return <p>Prihlasujem…</p>;
+}
+
+export default function SSOCallbackPage() {
+  return (
+    <Suspense fallback={<p>Načítavam…</p>}>
+      <SSOCallbackInner />
+    </Suspense>
+  );
 }
