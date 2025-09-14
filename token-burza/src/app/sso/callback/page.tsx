@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
 
 function CallbackInner() {
@@ -11,12 +11,18 @@ function CallbackInner() {
 
   useEffect(() => {
     const token = search.get("token");
-    if (token) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setActive({ token } as any)
-        .then(() => router.replace("/burza"))
-        .catch(() => router.replace("/"));
 
+    if (token) {
+      // Nastaví session z exchangeable session tokenu
+      setActive({ session: token })
+        .then(() => {
+          console.log("✅ Clerk session active via SSO callback");
+          router.replace("/burza"); // kam presmerovať po úspechu
+        })
+        .catch((err) => {
+          console.error("❌ Clerk setActive error:", err);
+          router.replace("/"); // fallback pri chybe
+        });
     }
   }, [search, router, setActive]);
 
