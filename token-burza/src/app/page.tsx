@@ -459,192 +459,215 @@ function BurzaTokenovInner() {
 
             {/* ============ TAB 1: BURZA – IBA BURZA ============ */}
             <TabsContent value="burza">
-              <Card className="rounded-[24px] border border-neutral-200 shadow-sm bg-white px-4 py-4">
-  <CardHeader className="pb-3 px-0">
-    <CardTitle className="text-base font-semibold text-neutral-900">
-      Burza tokenov
-    </CardTitle>
-    <p className="text-xs text-neutral-400">
-      Recent transactions from your store.
-    </p>
-  </CardHeader>
-  <CardContent className="space-y-3 pt-0">
-    {supply && (
-      <div className="flex items-center justify-between bg-neutral-50 border border-neutral-200 rounded-2xl px-3 py-3">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center border border-neutral-200">
-            🕒
-          </div>
-          <div className="flex flex-col leading-tight">
-            <span className="text-[15px] font-semibold text-neutral-900">
-              Token {supply.year}
-            </span>
-            <span className="text-[13px] text-neutral-400">
-              {supply.treasuryAvailable} dostupných v pokladnici
-            </span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[15px] font-semibold tracking-tight text-neutral-900">
-            {Number(supply.priceEur).toFixed(2)} €
-          </span>
-          <Button
-            size="sm"
-            className="rounded-full bg-black text-white px-5 py-1.5 text-[13px] font-medium hover:bg-black/80"
-            onClick={() => {
-              setBuyFromTreasury(true);
-              setBuySheetOpen(true);
-            }}
-          >
-            Kúpiť
-          </Button>
-        </div>
-      </div>
-    )}
+              <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
+                <CardHeader className="flex-row items-center justify-between space-y-0">
+                  <div>
+                    <CardTitle className="text-lg font-semibold">
+                      Burza tokenov
+                    </CardTitle>
+                    <p className="text-xs text-neutral-400 mt-1">
+                      Recent transactions from your store.
+                    </p>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <ScrollArea className="h-[520px] pr-2">
+                    <div className="flex flex-col gap-3 pt-3">
+                      {/* 1) najprv tokeny z pokladnice (admin vygenerované) */}
+                      {supply && supply.treasuryAvailable > 0 && (
+                        <div className="flex items-center justify-between bg-[#f3f3f3] rounded-2xl px-3 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center border border-neutral-200 text-xs">
+                              🕒
+                            </div>
+                            <div className="flex flex-col leading-tight">
+                              <span className="text-sm font-medium">
+                                Token {supply.year}
+                              </span>
+                              <span className="text-xs text-neutral-400">
+                                {supply.treasuryAvailable} dostupných v pokladnici
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold tracking-tight">
+                              {supply.priceEur.toFixed(2)} €
+                            </span>
+                            <Button
+                              size="sm"
+                              className="rounded-full bg-black text-white text-xs"
+                              onClick={() => {
+                                setBuyFromTreasury(true);
+                                setBuySheetOpen(true);
+                              }}
+                              disabled={maxCanBuy <= 0}
+                            >
+                              Kúpiť
+                            </Button>
+                          </div>
+                        </div>
+                      )}
 
-    {listings.length > 0 &&
-      listings.map((l) => (
-        <div
-          key={l.id}
-          className="flex items-center justify-between bg-neutral-50 border border-neutral-200 rounded-2xl px-3 py-3"
-        >
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center border border-neutral-200">
-              🕒
-            </div>
-            <div className="flex flex-col leading-tight">
-              <span className="text-[15px] font-semibold text-neutral-900">
-                Token {l.token?.issuedYear}
-              </span>
-              <span className="text-[13px] text-neutral-400">
-                {l.token?.id?.slice(0, 12)}…
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[15px] font-semibold tracking-tight text-neutral-900">
-              {Number(l.priceEur).toFixed(2)} €
-            </span>
-            {user?.id === l.sellerId ? (
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-full text-[13px]"
-                onClick={() => handleCancelListing(l.id)}
-              >
-                Zrušiť
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                className="rounded-full bg-black text-white px-5 py-1.5 text-[13px] font-medium hover:bg-black/80"
-                onClick={() => {
-                  setSelectedListing(l);
-                  setBuyFromTreasury(false);
-                  setBuySheetOpen(true);
-                }}
-              >
-                Kúpiť
-              </Button>
-            )}
-          </div>
-        </div>
-      ))}
-  </CardContent>
-</Card>
-
+                      {/* 2) potom všetky listingy (user aj admin) */}
+                      {listings.length === 0 ? (
+                        <p className="text-sm text-neutral-400">
+                          Žiadne otvorené ponuky.
+                        </p>
+                      ) : (
+                        listings.map((l) => (
+                          <div
+                            key={l.id}
+                            className="flex items-center justify-between bg-[#f3f3f3] rounded-2xl px-3 py-3"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center border border-neutral-200 text-xs">
+                                🕒
+                              </div>
+                              <div className="flex flex-col leading-tight">
+                                <span className="text-sm font-medium">
+                                  Token {l.token?.issuedYear ?? ""}
+                                </span>
+                                <span className="text-xs text-neutral-400">
+                                  {l.token?.id?.slice(0, 12) ?? l.tokenId}…
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold tracking-tight">
+                                {Number(l.priceEur).toFixed(2)} €
+                              </span>
+                              {user?.id === l.sellerId ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="rounded-full text-xs"
+                                  onClick={() => handleCancelListing(l.id)}
+                                >
+                                  Zrušiť
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  className="rounded-full bg-black hover:bg-black/85 text-xs"
+                                  disabled={buyingId === l.id}
+                                  onClick={() => {
+                                    setSelectedListing(l);
+                                    setBuyFromTreasury(false);
+                                    setBuySheetOpen(true);
+                                  }}
+                                >
+                                  {buyingId === l.id ? "Kupujem…" : "Kúpiť"}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
             </TabsContent>
             {/* ============ TAB 2: MOJE TOKENY ============ */}
             <TabsContent value="moje" className="space-y-5">
               {/* vrchný riadok ako na obrázku */}
-              <Card className="rounded-[24px] border border-neutral-200 shadow-sm bg-white px-4 py-4 flex items-center justify-between">
-                <div>
-                  <p className="text-[13px] text-neutral-400 mb-1">Moje tokeny</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[28px] font-bold text-neutral-900">
-                      {(balance?.totalMinutes ?? 0) / 60}
-                    </span>
-                    <span className="text-sm text-neutral-400">h</span>
+              <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
+                <CardContent className="pt-6 pb-5 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs text-neutral-400 mb-1">Moje tokeny</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl font-semibold tracking-tight">
+                        {balance?.totalMinutes
+                          ? (balance.totalMinutes / 60).toFixed(2)
+                          : "0,00"}
+                      </span>
+                      <span className="text-sm text-neutral-400">h</span>
+                    </div>
+                    <p className="text-xs text-neutral-400 mt-1">
+                      {tokensActive.length} aktívnych
+                    </p>
                   </div>
-                  <p className="text-[12px] text-neutral-400 mt-1">
-                    {tokensActive.length} aktívnych
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  className="rounded-full h-9 px-5 text-sm border-neutral-300"
-                  onClick={() => {
-                    setSellQty(1);
-                    setSellPrice(supply ? supply.priceEur : 450);
-                    setSellSheetOpen(true);
-                  }}
-                >
-                  Odpredať
-                </Button>
+                  {/* tu už „Odpredať“ pre KLIENTA */}
+                  <Button
+                    variant="outline"
+                    className="rounded-full h-9 px-5 text-sm"
+                    onClick={() => {
+                      setSellQty(1);
+                      setSellPrice(supply ? supply.priceEur : 450);
+                      setSellSheetOpen(true);
+                    }}
+                    disabled={tokensActive.length === 0}
+                  >
+                    Odpredať
+                  </Button>
+                </CardContent>
               </Card>
 
-
               {/* História transakcií */}
-                <Card className="rounded-[24px] border border-neutral-200 shadow-sm bg-white">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-[15px] font-semibold text-neutral-900">
-                      História transakcií
-                    </CardTitle>
-                    <p className="text-[12px] text-neutral-400">
-                      Záznamy o nákupoch a predajoch tokenov.
-                    </p>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="grid grid-cols-[80px,1fr,90px] text-[12px] text-neutral-400 py-2 border-b border-neutral-100">
-                      <span>Dátum</span>
-                      <span>Typ</span>
-                      <span className="text-right">Suma</span>
-                    </div>
-                    <ScrollArea className="h-[260px]">
-                      <div className="flex flex-col">
-                        {history.length === 0 ? (
-                          <div className="py-6 text-center text-neutral-400 text-sm">
-                            Žiadne transakcie
-                          </div>
-                        ) : (
-                          history.map((tx) => (
-                            <div
-                              key={tx.id}
-                              className="grid grid-cols-[80px,1fr,90px] items-center py-3 text-[14px] border-b last:border-b-0"
-                            >
-                              <span className="text-neutral-500">
-                                {new Date(tx.createdAt).toLocaleDateString("sk-SK")}
-                              </span>
-                              <div className="flex flex-col leading-tight">
-                                <span className="font-medium text-neutral-800">
-                                  {tx.type === "purchase"
-                                    ? "Nákup z pokladnice"
-                                    : tx.direction === "sell"
-                                    ? "Predaj tokenu"
-                                    : "Nákup tokenu"}
-                                </span>
-                                <span className="text-[12px] text-neutral-400">
-                                  {tx.year} • {tx.id?.slice(0, 10)}…
-                                </span>
-                              </div>
-                              <span
-                                className={`text-right font-semibold ${
-                                  tx.direction === "sell"
-                                    ? "text-emerald-500"
-                                    : "text-red-500"
-                                }`}
-                              >
-                                {tx.direction === "sell" ? "+" : "-"}
-                                {tx.price.toFixed(2)} €
-                              </span>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
+<Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
+  <CardHeader className="pb-3">
+    <CardTitle className="text-base font-semibold">
+      História transakcií
+    </CardTitle>
+    <p className="text-xs text-neutral-400">
+      Záznamy o nákupoch a predajoch tokenov.
+    </p>
+  </CardHeader>
+  <CardContent className="pt-0">
+    <div className="grid grid-cols-[80px,1fr,90px] text-xs text-neutral-400 py-2 border-b">
+      <span>Dátum</span>
+      <span>Typ</span>
+      <span className="text-right">Suma</span>
+    </div>
+    <ScrollArea className="h-[280px]">
+      <div className="flex flex-col">
+        {history.length === 0 ? (
+          <div className="py-6 text-center text-neutral-400 text-sm">
+            Žiadne transakcie
+          </div>
+        ) : (
+          history.slice(0, 8).map((tx) => (
+            <div
+              key={tx.id}
+              className="grid grid-cols-[80px,1fr,90px] items-center py-3 text-sm border-b last:border-b-0"
+            >
+              {/* dátum */}
+              <span className="text-neutral-500">
+                {new Date(tx.createdAt).toLocaleDateString("sk-SK")}
+              </span>
 
+              {/* typ transakcie */}
+              <div className="flex flex-col leading-tight">
+                <span className="font-medium text-neutral-800">
+                  {tx.type === "purchase"
+                    ? "Nákup z pokladnice"
+                    : tx.direction === "sell"
+                    ? "Predaj tokenu"
+                    : "Nákup tokenu"}
+                </span>
+                <span className="text-xs text-neutral-400">
+                  {tx.year} • {tx.id?.slice(0, 10)}…
+                </span>
+              </div>
+
+              {/* cena */}
+              <span
+                className={`text-right font-semibold ${
+                  tx.direction === "sell"
+                    ? "text-emerald-500"
+                    : "text-red-500"
+                }`}
+              >
+                {tx.direction === "sell" ? "+" : "-"}
+                {tx.price.toFixed(2)} €
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+    </ScrollArea>
+  </CardContent>
+</Card>
 
 
               {/* admin panel dolu */}
