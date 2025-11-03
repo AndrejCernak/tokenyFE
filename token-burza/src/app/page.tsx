@@ -66,6 +66,15 @@ type Listing = {
   createdAt: string;
   token: FridayToken;
 };
+type HistoryItem = {
+  id: string;
+  type: "purchase" | "trade";
+  direction: "buy" | "sell";
+  price: number;
+  year: number;
+  createdAt: string | Date;
+};
+
 
 function BurzaTokenovInner() {
   const { user, isSignedIn } = useUser();
@@ -82,6 +91,30 @@ function BurzaTokenovInner() {
   const [balance, setBalance] = useState<FridayBalance | null>(null);
   const [listings, setListings] = useState<Listing[]>([]);
   const [qty, setQty] = useState<number>(1);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+
+  const fetchHistory = useCallback(async () => {
+  if (!user) return;
+
+  const res = await fetch(`${backend}/friday/history/${user.id}`);
+  const data = await res.json();
+
+  if (data?.success && Array.isArray(data.items)) {
+    setHistory(
+      data.items.map((tx: any) => ({
+        ...tx,
+        createdAt: new Date(tx.createdAt),
+      }))
+    );
+  }
+}, [backend, user]);
+
+
+  useEffect(() => {
+    if (isSignedIn) fetchHistory();
+  }, [isSignedIn, fetchHistory]);
+
+
 
   // drawer – kúpa
   const [buySheetOpen, setBuySheetOpen] = useState(false);
@@ -559,58 +592,72 @@ function BurzaTokenovInner() {
                 </CardContent>
               </Card>
 
-              {/* História transakcií – rovnaký štýl */}
-              <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base font-semibold">
-                    História transakcií
-                  </CardTitle>
-                  <p className="text-xs text-neutral-400">
-                    Recent transactions from your store.
-                  </p>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="grid grid-cols-[80px,1fr,90px] text-xs text-neutral-400 py-2 border-b">
-                    <span>Dátum</span>
-                    <span>Typ</span>
-                    <span className="text-right">Množstvo</span>
-                  </div>
-                  <ScrollArea className="h-[280px]">
-                    <div className="flex flex-col">
-                      {listings.slice(0, 8).map((l) => (
-                        <div
-                          key={l.id}
-                          className="grid grid-cols-[80px,1fr,90px] items-center py-3 text-sm border-b last:border-b-0"
-                        >
-                          <span className="text-neutral-500">
-                            {new Date(l.createdAt).toLocaleDateString("sk-SK")}
-                          </span>
-                          <div className="flex flex-col leading-tight">
-                            <span className="font-medium text-neutral-800">
-                              {l.sellerId === user?.id
-                                ? "Predaj tokenu"
-                                : "Nákup tokenu"}
-                            </span>
-                            <span className="text-xs text-neutral-400">
-                              {l.token?.id?.slice(0, 12)}…
-                            </span>
-                          </div>
-                          <span
-                            className={`text-right font-semibold ${
-                              l.sellerId === user?.id
-                                ? "text-emerald-500"
-                                : "text-red-500"
-                            }`}
-                          >
-                            {l.sellerId === user?.id ? "+" : "-"}
-                            {Number(l.priceEur).toFixed(2)} €
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
+              {/* História transakcií */}
+<Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
+  <CardHeader className="pb-3">
+    <CardTitle className="text-base font-semibold">
+      História transakcií
+    </CardTitle>
+    <p className="text-xs text-neutral-400">
+      Záznamy o nákupoch a predajoch tokenov.
+    </p>
+  </CardHeader>
+  <CardContent className="pt-0">
+    <div className="grid grid-cols-[80px,1fr,90px] text-xs text-neutral-400 py-2 border-b">
+      <span>Dátum</span>
+      <span>Typ</span>
+      <span className="text-right">Suma</span>
+    </div>
+    <ScrollArea className="h-[280px]">
+      <div className="flex flex-col">
+        {history.length === 0 ? (
+          <div className="py-6 text-center text-neutral-400 text-sm">
+            Žiadne transakcie
+          </div>
+        ) : (
+          history.slice(0, 8).map((tx) => (
+            <div
+              key={tx.id}
+              className="grid grid-cols-[80px,1fr,90px] items-center py-3 text-sm border-b last:border-b-0"
+            >
+              {/* dátum */}
+              <span className="text-neutral-500">
+                {new Date(tx.createdAt).toLocaleDateString("sk-SK")}
+              </span>
+
+              {/* typ transakcie */}
+              <div className="flex flex-col leading-tight">
+                <span className="font-medium text-neutral-800">
+                  {tx.type === "purchase"
+                    ? "Nákup z pokladnice"
+                    : tx.direction === "sell"
+                    ? "Predaj tokenu"
+                    : "Nákup tokenu"}
+                </span>
+                <span className="text-xs text-neutral-400">
+                  {tx.year} • {tx.id?.slice(0, 10)}…
+                </span>
+              </div>
+
+              {/* cena */}
+              <span
+                className={`text-right font-semibold ${
+                  tx.direction === "sell"
+                    ? "text-emerald-500"
+                    : "text-red-500"
+                }`}
+              >
+                {tx.direction === "sell" ? "+" : "-"}
+                {tx.price.toFixed(2)} €
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+    </ScrollArea>
+  </CardContent>
+</Card>
+
 
               {/* admin panel dolu */}
               {role === "admin" ? (
