@@ -279,6 +279,7 @@ function BurzaTokenovInner() {
     if (!user) return;
     if (!balance) return;
 
+    
     // dostupné aktívne tokeny klienta
     const activeTokens = (balance.tokens || []).filter(
       (t) => t.status === "active" && t.minutesRemaining > 0
@@ -313,6 +314,12 @@ function BurzaTokenovInner() {
         console.warn("Listovanie zlyhalo pre token", token.id);
       }
     }
+    console.log("Listujem token:", {
+  sellerId: user.id,
+  tokenId: activeTokens[0]?.id,
+  priceEur: sellPrice,
+});
+
 
     // po listovaní obnovíme dáta
     await Promise.all([fetchBalance(), fetchListings()]);
