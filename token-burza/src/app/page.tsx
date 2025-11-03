@@ -763,7 +763,8 @@ function BurzaTokenovInner() {
           </div>
           <div className="mt-6 flex flex-col gap-3">
             <Button
-              className="w-full rounded-xl bg-black hover:bg-black/85"
+              variant="default"
+              className="w-full rounded-xl"
               onClick={() => {
                 if (buyFromTreasury) {
                   handlePrimaryBuy(1);
@@ -779,6 +780,7 @@ function BurzaTokenovInner() {
             >
               Kúpiť
             </Button>
+
             <SheetClose asChild>
               <Button
                 variant="outline"
@@ -856,11 +858,14 @@ function BurzaTokenovInner() {
 
             <div className="flex flex-col gap-3">
               <Button
-                className="w-full rounded-xl bg-black hover:bg-black/80"
+                variant="default"
+                className="w-full rounded-xl"
                 onClick={handleClientListTokens}
               >
                 Pridať na burzu
               </Button>
+
+
               <SheetClose asChild>
                 <Button
                   variant="outline"
