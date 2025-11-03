@@ -101,11 +101,12 @@ function BurzaTokenovInner() {
 
   if (data?.success && Array.isArray(data.items)) {
     setHistory(
-      data.items.map((tx: any) => ({
-        ...tx,
-        createdAt: new Date(tx.createdAt),
-      }))
-    );
+  data.items.map((tx: HistoryItem) => ({
+    ...tx,
+    createdAt: new Date(tx.createdAt),
+  }))
+);
+
   }
 }, [backend, user]);
 
