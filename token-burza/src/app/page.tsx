@@ -34,6 +34,8 @@ import {
   SheetClose,
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
+
 
 // ---- typy ----
 type FridayToken = {
@@ -92,6 +94,11 @@ function BurzaTokenovInner() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [qty, setQty] = useState<number>(1);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [mintSheetOpen, setMintSheetOpen] = useState(false);
+  const [mintQty, setMintQty] = useState<number>(1);
+  const [mintPrice, setMintPrice] = useState<number>(450);
+  const [mintYear, setMintYear] = useState<number>(currentYear);
+
 
   const fetchHistory = useCallback(async () => {
   if (!user) return;
@@ -328,32 +335,28 @@ function BurzaTokenovInner() {
 
   // === admin akcie (nechávam) =============================
   const handleAdminMint = useCallback(async () => {
-    if (role !== "admin") return;
-    const qtyStr = prompt("Koľko tokenov chceš vytvoriť?");
-    const priceStr = prompt("Za akú cenu (€) ich chceš ponúknuť?");
-    const yearStr = prompt(`Pre aký rok? (default ${currentYear})`) || `${currentYear}`;
-    const q = Number(qtyStr);
-    const price = Number((priceStr || "").replace(",", "."));
-    const year = Number(yearStr);
+  if (role !== "admin") return;
 
-    if (!Number.isInteger(q) || q <= 0 || !Number.isFinite(price) || price <= 0 || !Number.isInteger(year)) {
-      alert("Neplatné vstupy.");
-      return;
-    }
+  const res = await fetch(`${backend}/friday/admin/mint`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify({
+      quantity: mintQty,
+      priceEur: mintPrice,
+      year: mintYear,
+    }),
+  });
+  const data = await res.json();
 
-    const res = await fetch(`${backend}/friday/admin/mint`, {
-      method: "POST",
-      headers: await authHeaders(),
-      body: JSON.stringify({ quantity: q, priceEur: price, year }),
-    });
-    const data = await res.json();
-    if (res.ok && data?.success) {
-      alert(`Vytvorených ${q} tokenov pre rok ${year} @ ${price.toFixed(2)} €`);
-      await fetchSupply();
-    } else {
-      alert(data?.message || "Mint zlyhal.");
-    }
-  }, [backend, role, currentYear, fetchSupply, authHeaders]);
+  if (res.ok && data?.success) {
+    alert(`✅ Vytvorených ${mintQty} tokenov pre rok ${mintYear} @ ${mintPrice.toFixed(2)} €`);
+    await fetchSupply();
+    setMintSheetOpen(false);
+  } else {
+    alert(data?.message || "Mint zlyhal.");
+  }
+}, [backend, role, mintQty, mintPrice, mintYear, fetchSupply, authHeaders]);
+
 
   const handleAdminSetPrice = useCallback(async () => {
     if (role !== "admin") return;
@@ -878,6 +881,110 @@ function BurzaTokenovInner() {
           </div>
         </SheetContent>
       </Sheet>
+      {/* ===== DRAWER: ADMIN MINT ===== */}
+<Sheet open={mintSheetOpen} onOpenChange={setMintSheetOpen}>
+  <SheetContent
+    side="bottom"
+    className="rounded-t-3xl px-6 py-6 max-w-md mx-auto"
+  >
+    <SheetHeader className="items-center">
+      <div className="w-16 h-1.5 bg-neutral-200 rounded-full mb-4" />
+      <SheetTitle>Mintovanie tokenov</SheetTitle>
+    </SheetHeader>
+
+    <div className="mt-6 space-y-6">
+      {/* Počet tokenov */}
+      <div className="flex flex-col gap-2">
+        <p className="text-xs text-neutral-400">Počet tokenov</p>
+        <div className="flex items-center gap-3 justify-center">
+          <Button
+            variant="outline"
+            className="h-10 w-10 rounded-xl"
+            onClick={() => setMintQty((n) => Math.max(1, n - 1))}
+          >
+            –
+          </Button>
+          <span className="text-xl font-semibold">{mintQty}</span>
+          <Button
+            variant="outline"
+            className="h-10 w-10 rounded-xl"
+            onClick={() => setMintQty((n) => n + 1)}
+          >
+            +
+          </Button>
+        </div>
+      </div>
+
+      {/* Cena */}
+      <div className="flex flex-col gap-2">
+        <p className="text-xs text-neutral-400">Cena (€)</p>
+        <div className="flex items-center gap-3 justify-center">
+          <Button
+            variant="outline"
+            className="h-10 w-10 rounded-xl"
+            onClick={() => setMintPrice((p) => Math.max(1, p - 10))}
+          >
+            –
+          </Button>
+          <div className="flex items-baseline gap-1">
+            <span className="text-3xl font-semibold">{mintPrice}</span>
+            <span className="text-sm text-neutral-500">€</span>
+          </div>
+          <Button
+            variant="outline"
+            className="h-10 w-10 rounded-xl"
+            onClick={() => setMintPrice((p) => p + 10)}
+          >
+            +
+          </Button>
+        </div>
+      </div>
+
+      {/* Rok */}
+      <div className="flex flex-col gap-2">
+        <p className="text-xs text-neutral-400">Rok</p>
+        <div className="flex items-center gap-3 justify-center">
+          <Button
+            variant="outline"
+            className="h-10 w-10 rounded-xl"
+            onClick={() => setMintYear((y) => y - 1)}
+          >
+            –
+          </Button>
+          <span className="text-xl font-semibold">{mintYear}</span>
+          <Button
+            variant="outline"
+            className="h-10 w-10 rounded-xl"
+            onClick={() => setMintYear((y) => y + 1)}
+          >
+            +
+          </Button>
+        </div>
+      </div>
+
+      {/* Potvrdiť */}
+      <div className="flex flex-col gap-3">
+        <Button
+          variant="default"
+          className={cn("w-full rounded-xl", role === "admin" && "text-white")}
+          onClick={handleAdminMint}
+        >
+          Vytvoriť tokeny
+        </Button>
+
+        <SheetClose asChild>
+          <Button
+            variant="outline"
+            className="w-full rounded-xl border-neutral-200"
+          >
+            Zrušiť
+          </Button>
+        </SheetClose>
+      </div>
+    </div>
+  </SheetContent>
+</Sheet>
+
     </main>
   );
 }
