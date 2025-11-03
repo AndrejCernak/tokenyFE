@@ -691,11 +691,12 @@ function BurzaTokenovInner() {
                     <div className="flex gap-2 flex-wrap">
                       <Button
                         size="sm"
-                        className="bg-black hover:bg-black/80"
-                        onClick={handleAdminMint}
+                        className="bg-black hover:bg-black/80 text-white"
+                        onClick={() => setMintSheetOpen(true)}
                       >
                         Mint
                       </Button>
+
                       <Button
                         size="sm"
                         variant="outline"
