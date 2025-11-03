@@ -794,9 +794,11 @@ function BurzaTokenovInner() {
       {/* ===== DRAWER: ODPREDAŤ TOKEN (CLIENT) ===== */}
       <Sheet open={sellSheetOpen} onOpenChange={setSellSheetOpen}>
         <SheetContent
-          side="bottom"
-          className="rounded-t-3xl px-6 py-6 max-w-md mx-auto"
-        >
+  side="bottom"
+  className="rounded-t-3xl px-6 py-6 max-w-md mx-auto bg-white shadow-xl border-t border-neutral-200"
+  overlayClass="bg-white/90"
+>
+
           <SheetHeader className="items-center">
             <div className="w-16 h-1.5 bg-neutral-200 rounded-full mb-4" />
             <SheetTitle>Odpredať token</SheetTitle>
