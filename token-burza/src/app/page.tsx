@@ -17,7 +17,6 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-// shadcn ui
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -32,7 +31,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetFooter,
   SheetClose,
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -75,6 +73,7 @@ function BurzaTokenovInner() {
   const router = useRouter();
   const search = useSearchParams();
 
+  // ====== KONFIG ======
   const role = (user?.publicMetadata.role as string) || "client";
 
   const backend = process.env.NEXT_PUBLIC_BACKEND_URL!;
@@ -86,11 +85,11 @@ function BurzaTokenovInner() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [buyingId, setBuyingId] = useState<string | null>(null);
 
-  // sheet – kupujem z burzy
+  // drawer: kúpiť z burzy
   const [buySheetOpen, setBuySheetOpen] = useState(false);
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
 
-  // sheet – odpredaj tokenu (LEN ADMIN)
+  // drawer: odpredať (LEN admin)
   const [sellSheetOpen, setSellSheetOpen] = useState(false);
   const [sellSelectedToken, setSellSelectedToken] = useState<FridayToken | null>(
     null
@@ -98,7 +97,7 @@ function BurzaTokenovInner() {
   const [sellPrice, setSellPrice] = useState<number>(450);
   const [sellQty, setSellQty] = useState<number>(1);
 
-  // odvodené
+  // ==== odvodené =====
   const tokensActive = useMemo(
     () =>
       (balance?.tokens || []).filter(
@@ -122,7 +121,7 @@ function BurzaTokenovInner() {
   );
   const maxCanBuy = Math.max(0, 20 - ownedThisYear);
 
-  // === FETCHY ========================================================
+  // ====== FETCHY =====================================================
   const fetchSupply = useCallback(async () => {
     const res = await fetch(`${backend}/friday/supply?year=${currentYear}`);
     const data = (await res.json()) as SupplyInfo;
@@ -162,7 +161,6 @@ function BurzaTokenovInner() {
     init();
   }, [isSignedIn, user, backend, getToken]);
 
-  // prvotné fetchy
   useEffect(() => {
     fetchSupply();
     fetchListings();
@@ -176,7 +174,7 @@ function BurzaTokenovInner() {
     };
   }, [getToken]);
 
-  // === STRIPE Treasury Checkout (primárny nákup) =====================
+  // ====== KÚPA z pokladnice ==========================================
   const handlePrimaryBuy = useCallback(async () => {
     if (!user || !supply) return;
 
@@ -203,7 +201,7 @@ function BurzaTokenovInner() {
     }
   }, [backend, user, qty, maxCanBuy, currentYear, supply]);
 
-  // === STRIPE Listing Checkout (z burzy) =============================
+  // ====== KÚPA z burzy ===============================================
   const handleBuyListing = useCallback(
     async (listingId: string) => {
       if (!user) return;
@@ -228,7 +226,7 @@ function BurzaTokenovInner() {
     [backend, user]
   );
 
-  // === spracovanie návratu z checkoutu ===============================
+  // ====== návrat zo Stripe ===========================================
   useEffect(() => {
     const status = search.get("payment");
     if (status === "success") {
@@ -244,7 +242,7 @@ function BurzaTokenovInner() {
     }
   }, [search, router, fetchBalance, fetchListings, fetchSupply]);
 
-  // === listovanie tokenu (ADMIN) =====================================
+  // ====== listovanie tokenu (ADMIN pridá na burzu) ===================
   const handleListToken = useCallback(
     async (tokenId: string, price: number) => {
       if (!user) return;
@@ -263,6 +261,7 @@ function BurzaTokenovInner() {
     [backend, user, fetchBalance, fetchListings]
   );
 
+  // ====== zrušenie listingu ==========================================
   const handleCancelListing = useCallback(
     async (listingId: string) => {
       if (!user) return;
@@ -281,7 +280,7 @@ function BurzaTokenovInner() {
     [backend, user, fetchBalance, fetchListings]
   );
 
-  // === admin akcie (ponechané) =======================================
+  // ====== ADMIN akcie (ponechané) ====================================
   const handleAdminMint = useCallback(async () => {
     if (role !== "admin") return;
     const qtyStr = prompt("Koľko tokenov chceš vytvoriť?");
@@ -333,12 +332,12 @@ function BurzaTokenovInner() {
     }
   }, [backend, role, fetchSupply, authHeaders]);
 
-  // === RENDER ========================================================
+  // ====== RENDER =====================================================
   return (
-    <main className="min-h-screen bg-[#e4e4e4]">
-      {/* top bar presne ako na obrázku */}
-      <header className="w-full bg-white border-b border-neutral-200 sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+    <main className="min-h-screen bg-white">
+      {/* sticky header presne ako chceš */}
+      <header className="sticky top-0 z-30 w-full bg-white border-b border-neutral-200">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-full bg-black text-white flex items-center justify-center">
               🪙
@@ -347,73 +346,73 @@ function BurzaTokenovInner() {
               Tokeny
             </span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <div className="h-8 px-3 rounded-full border bg-white text-xs flex items-center gap-1 text-neutral-600">
-              <span>SK</span>
+              <span>🇸🇰</span>
             </div>
             <SignedOut>
               <SignInButton>
-                <Button className="rounded-full bg-emerald-600 hover:bg-emerald-700">
+                <Button className="rounded-full bg-black hover:bg-black/80 h-8 px-4 text-xs">
                   Prihlásiť sa
                 </Button>
               </SignInButton>
             </SignedOut>
             <SignedIn>
-              {/* tu je Clerk účet – vidíš kto je prihlásený a vieš sa odhlásiť */}
               <UserButton afterSignOutUrl="/" />
             </SignedIn>
           </div>
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 pb-10">
-        {/* obsahová plocha */}
-        <div className="mt-6 bg-[#dedede] rounded-t-[36px] md:rounded-[36px] p-5 md:p-8 pb-10">
-          <div className="flex items-center justify-between gap-4 mb-6">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Tokeny</h1>
-              <p className="text-sm text-neutral-500">
-                Recent transactions from your store.
-              </p>
-            </div>
-            <SignedIn>
-              {role !== "admin" ? (
-                <Button
-                  variant="outline"
-                  className="hidden md:inline-flex rounded-full border-neutral-200"
-                  onClick={() => {
-                    fetchBalance();
-                    fetchListings();
-                    fetchSupply();
-                  }}
-                >
-                  Obnoviť dáta
-                </Button>
-              ) : null}
-            </SignedIn>
+      <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Tokeny</h1>
+            <p className="text-sm text-neutral-500">
+              Recent transactions from your store.
+            </p>
           </div>
-
           <SignedIn>
-            <Tabs defaultValue="burza" className="space-y-5">
-              <TabsList className="bg-transparent p-0 gap-3">
-                <TabsTrigger
-                    value="burza"
-                    className="rounded-full bg-white px-5 py-2 text-sm data-[state=active]:bg-black data-[state=active]:text-white"
-                >
-                  Burza tokenov
-                </TabsTrigger>
-                <TabsTrigger
-                    value="moje"
-                    className="rounded-full bg-white px-5 py-2 text-sm data-[state=active]:bg-black data-[state=active]:text-white"
-                >
-                  Moje tokeny
-                </TabsTrigger>
-              </TabsList>
+            {role !== "admin" ? (
+              <Button
+                variant="outline"
+                className="hidden md:inline-flex rounded-full"
+                onClick={() => {
+                  fetchBalance();
+                  fetchListings();
+                  fetchSupply();
+                }}
+              >
+                Obnoviť dáta
+              </Button>
+            ) : null}
+          </SignedIn>
+        </div>
 
-              {/* ================= BURZA (hlavná) ================ */}
-              <TabsContent value="burza" className="flex flex-col lg:flex-row gap-5">
-                {/* ľavý stĺpec */}
-                <Card className="flex-1 rounded-[28px] border-neutral-200 shadow-sm bg-white">
+        <SignedIn>
+          {/* tabs hore – presne ako v návrhu */}
+          <Tabs defaultValue="burza" className="space-y-5">
+            <TabsList className="bg-transparent p-0 gap-3">
+              <TabsTrigger
+                value="burza"
+                className="rounded-full bg-black text-white px-6 py-2 text-sm data-[state=inactive]:bg-white data-[state=inactive]:text-neutral-900 border border-transparent data-[state=inactive]:border-neutral-200"
+              >
+                Burza tokenov
+              </TabsTrigger>
+              <TabsTrigger
+                value="moje"
+                className="rounded-full bg-white text-neutral-900 px-6 py-2 text-sm border border-neutral-200 data-[state=active]:bg-black data-[state=active]:text-white"
+              >
+                Moje tokeny
+              </TabsTrigger>
+            </TabsList>
+
+            {/* =============== TAB: BURZA (desktop aj mobil) =============== */}
+            <TabsContent value="burza" className="space-y-5">
+              {/* desktop: 2 stĺpce, mobil: pod seba */}
+              <div className="flex flex-col lg:flex-row gap-5">
+                {/* ľavý stĺpec – burza */}
+                <Card className="flex-1 bg-white border border-neutral-200 rounded-[28px] shadow-sm">
                   <CardHeader className="flex-row items-center justify-between space-y-0">
                     <div>
                       <CardTitle className="text-lg font-semibold">
@@ -423,18 +422,16 @@ function BurzaTokenovInner() {
                         Recent transactions from your store.
                       </p>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="rounded-full border-neutral-200 text-xs"
-                      >
-                        Cena ⇵
-                      </Button>
-                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full text-xs h-8 px-4"
+                    >
+                      Cena ⇵
+                    </Button>
                   </CardHeader>
                   <CardContent className="pt-0">
-                    <ScrollArea className="h-[480px] pr-3">
+                    <ScrollArea className="h-[470px] md:h-[520px] pr-2">
                       <div className="flex flex-col gap-3 pt-3">
                         {listings.length === 0 ? (
                           <p className="text-sm text-neutral-400">
@@ -444,7 +441,7 @@ function BurzaTokenovInner() {
                           listings.map((l) => (
                             <div
                               key={l.id}
-                              className="flex items-center justify-between bg-neutral-100/70 rounded-2xl px-3 py-3"
+                              className="flex items-center justify-between bg-[#f3f3f3] rounded-2xl px-3 py-3"
                             >
                               <div className="flex items-center gap-3">
                                 <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center border border-neutral-200 text-xs">
@@ -455,7 +452,7 @@ function BurzaTokenovInner() {
                                     Token
                                   </span>
                                   <span className="text-xs text-neutral-400">
-                                    {l.token?.id?.slice(0, 10) ?? l.tokenId}…
+                                    {l.token?.id?.slice(0, 12) ?? l.tokenId}…
                                   </span>
                                 </div>
                               </div>
@@ -475,7 +472,7 @@ function BurzaTokenovInner() {
                                 ) : (
                                   <Button
                                     size="sm"
-                                    className="rounded-full bg-black hover:bg-black/85 text-xs text-white"
+                                    className="rounded-full bg-black hover:bg-black/85 text-xs"
                                     disabled={role === "admin" || buyingId === l.id}
                                     onClick={() => {
                                       setSelectedListing(l);
@@ -494,11 +491,11 @@ function BurzaTokenovInner() {
                   </CardContent>
                 </Card>
 
-                {/* pravý stĺpec */}
-                <div className="w-full lg:w-[360px] flex flex-col gap-5">
+                {/* pravý stĺpec (na mobile sa zobrazí pod sebou) */}
+                <div className="flex flex-col gap-5 w-full lg:w-[380px]">
                   {/* Moje tokeny */}
-                  <Card className="rounded-[28px] border-neutral-200 shadow-sm bg-white">
-                    <CardContent className="pt-6 flex items-center justify-between gap-3">
+                  <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
+                    <CardContent className="pt-6 pb-5 flex items-center justify-between gap-3">
                       <div>
                         <p className="text-xs text-neutral-400 mb-1">
                           Moje tokeny
@@ -516,12 +513,11 @@ function BurzaTokenovInner() {
                           {tokensListed.length} na burze
                         </p>
                       </div>
-
-                      {/* ADMIN vidí ODPREDAŤ (ako na obrázku) */}
+                      {/* TLAČIDLO IBA PRE ADMINA */}
                       {role === "admin" ? (
                         <Button
                           variant="outline"
-                          className="rounded-full border-neutral-200 text-sm"
+                          className="rounded-full h-9 px-5 text-sm"
                           onClick={() => {
                             setSellSelectedToken(tokensActive[0] ?? null);
                             setSellSheetOpen(true);
@@ -530,36 +526,12 @@ function BurzaTokenovInner() {
                         >
                           Odpredať
                         </Button>
-                      ) : (
-                        // klient – tu dáme „Kúpiť“ z pokladnice, aby ostala funkcionalita
-                        <div className="flex flex-col items-end gap-2">
-                          <Input
-                            type="number"
-                            min={1}
-                            value={qty}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                              setQty(parseInt(e.target.value || "1", 10))
-                            }
-                            className="w-16 h-8 rounded-full bg-neutral-100 border-0 text-center text-xs"
-                          />
-                          <Button
-                            className="rounded-full bg-black hover:bg-black/85 text-xs"
-                            onClick={handlePrimaryBuy}
-                            disabled={
-                              !supply ||
-                              (supply?.treasuryAvailable ?? 0) <= 0 ||
-                              maxCanBuy <= 0
-                            }
-                          >
-                            Kúpiť
-                          </Button>
-                        </div>
-                      )}
+                      ) : null}
                     </CardContent>
                   </Card>
 
-                  {/* História transakcií */}
-                  <Card className="rounded-[28px] border-neutral-200 shadow-sm bg-white flex-1">
+                  {/* História transakcií – na mobile ide pod „moje tokeny“ */}
+                  <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm flex-1">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base font-semibold">
                         História transakcií
@@ -574,7 +546,7 @@ function BurzaTokenovInner() {
                         <span>Typ</span>
                         <span className="text-right">Množstvo</span>
                       </div>
-                      <ScrollArea className="h-[260px]">
+                      <ScrollArea className="h-[240px]">
                         <div className="flex flex-col">
                           {listings.slice(0, 5).map((l) => (
                             <div
@@ -593,7 +565,7 @@ function BurzaTokenovInner() {
                                     : "Nákup tokenu"}
                                 </span>
                                 <span className="text-xs text-neutral-400">
-                                  {l.token?.id?.slice(0, 10)}…
+                                  {l.token?.id?.slice(0, 12)}…
                                 </span>
                               </div>
                               <span
@@ -613,9 +585,9 @@ function BurzaTokenovInner() {
                     </CardContent>
                   </Card>
 
-                  {/* ADMIN riadenie – dole */}
+                  {/* ADMIN panel – dole vpravo */}
                   {role === "admin" ? (
-                    <Card className="rounded-[28px] border-neutral-200 shadow-sm bg-white">
+                    <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
                       <CardContent className="pt-4 space-y-3">
                         <p className="text-xs text-neutral-400">
                           Admin – pokladnica
@@ -628,12 +600,13 @@ function BurzaTokenovInner() {
                           • V pokladnici:{" "}
                           <span className="font-semibold">
                             {supply?.treasuryAvailable ?? 0}
-                          </span>
+                          </span>{" "}
+                          (rok {currentYear})
                         </p>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           <Button
                             size="sm"
-                            className="bg-black hover:bg-black/85"
+                            className="bg-black hover:bg-black/80"
                             onClick={handleAdminMint}
                           >
                             Mint
@@ -660,81 +633,131 @@ function BurzaTokenovInner() {
                     </Card>
                   ) : null}
                 </div>
-              </TabsContent>
+              </div>
 
-              {/* ============ druhá tabu – MOJE TOKENY (viac detailov) ============ */}
-              <TabsContent value="moje" className="space-y-4">
-                <Card className="rounded-[28px] bg-white border-neutral-200 shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-base">
-                      Moje tokeny (detail)
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {balance?.tokens?.length ? (
-                      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-                        {balance.tokens.map((t) => (
-                          <div
-                            key={t.id}
-                            className="border rounded-2xl px-4 py-3 bg-neutral-50 flex flex-col gap-2"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium">
-                                {t.issuedYear}
-                              </span>
-                              <span
-                                className={`text-[10px] uppercase px-2 py-1 rounded-full ${
-                                  t.status === "active"
-                                    ? "bg-emerald-100 text-emerald-700"
-                                    : t.status === "listed"
-                                    ? "bg-amber-100 text-amber-700"
-                                    : "bg-neutral-200 text-neutral-700"
-                                }`}
-                              >
-                                {t.status}
-                              </span>
-                            </div>
-                            <p className="text-xs text-neutral-400">
-                              Zostatok: {t.minutesRemaining} min
-                            </p>
-                            {/* aj tu: iba admin môže pridať na burzu */}
-                            {role === "admin" && t.status === "active" ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="rounded-full text-xs"
-                                onClick={() => {
-                                  setSellSelectedToken(t);
-                                  setSellSheetOpen(true);
-                                  setSellPrice(supply ? supply.priceEur : 450);
-                                }}
-                              >
-                                Odpredať
-                              </Button>
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-neutral-400">
-                        Zatiaľ nemáš žiadne tokeny.
-                      </p>
-                    )}
+              {/* malá karta na nákup z pokladnice pre klienta (mimo admina) */}
+              {role !== "admin" ? (
+                <Card className="bg-white border border-neutral-200 rounded-[24px] shadow-sm max-w-md">
+                  <CardContent className="pt-5 space-y-3">
+                    <p className="text-xs text-neutral-400">
+                      Primárny nákup (pokladnica)
+                    </p>
+                    <p className="text-sm text-neutral-500">
+                      Rok {currentYear} • Cena{" "}
+                      <span className="font-semibold">
+                        {supply ? supply.priceEur.toFixed(2) : "…"} €
+                      </span>
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={Math.min(
+                          maxCanBuy,
+                          supply?.treasuryAvailable ?? 0
+                        )}
+                        value={qty}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setQty(parseInt(e.target.value || "1", 10))
+                        }
+                        className="w-20 h-9 rounded-full bg-neutral-100 border-0 text-center"
+                      />
+                      <Button
+                        className="rounded-full bg-black hover:bg-black/85"
+                        onClick={handlePrimaryBuy}
+                        disabled={
+                          !supply ||
+                          (supply?.treasuryAvailable ?? 0) <= 0 ||
+                          maxCanBuy <= 0
+                        }
+                      >
+                        Kúpiť tokeny
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-neutral-400">
+                      Limit: max 20 tokenov/rok/osoba. Aktuálne držíš{" "}
+                      {ownedThisYear} tokenov z {currentYear}.
+                    </p>
                   </CardContent>
                 </Card>
-              </TabsContent>
-            </Tabs>
+              ) : null}
+            </TabsContent>
 
-            <p className="text-[10px] text-neutral-400 mt-6">
-              Token = právo na 60 min v piatok. Nevyužité tokeny sa prenášajú do ďalšieho roka.
-            </p>
-          </SignedIn>
-        </div>
+            {/* =============== TAB: MOJE TOKENY ==================== */}
+            <TabsContent value="moje" className="space-y-4">
+              <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    Moje tokeny (detail)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {balance?.tokens?.length ? (
+                    <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                      {balance.tokens.map((t) => (
+                        <div
+                          key={t.id}
+                          className="border rounded-2xl px-4 py-3 bg-neutral-50 flex flex-col gap-2"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">
+                              {t.issuedYear}
+                            </span>
+                            <span
+                              className={`text-[10px] uppercase px-2 py-1 rounded-full ${
+                                t.status === "active"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : t.status === "listed"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-neutral-200 text-neutral-700"
+                              }`}
+                            >
+                              {t.status}
+                            </span>
+                          </div>
+                          <p className="text-xs text-neutral-400">
+                            Zostatok: {t.minutesRemaining} min
+                          </p>
+                          {/* iba admin môže dať na burzu */}
+                          {role === "admin" && t.status === "active" ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-full text-xs"
+                              onClick={() => {
+                                setSellSelectedToken(t);
+                                setSellSheetOpen(true);
+                                setSellPrice(supply ? supply.priceEur : 450);
+                              }}
+                            >
+                              Odpredať
+                            </Button>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-neutral-400">
+                      Zatiaľ nemáš žiadne tokeny.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+
+          <p className="text-[10px] text-neutral-400 mt-6">
+            Token = právo na 60 min v piatok. Nevyužité tokeny sa prenášajú do ďalšieho roka.
+          </p>
+        </SignedIn>
       </div>
 
-      {/* ====== SHEET: kúpiť token (dolný drawer ako na obrázku) ====== */}
+      {/* ===== DRAWER: KÚPIŤ TOKEN ===== */}
       <Sheet open={buySheetOpen} onOpenChange={setBuySheetOpen}>
-        <SheetContent side="bottom" className="rounded-t-3xl px-6 py-6 max-w-md mx-auto">
+        <SheetContent
+          side="bottom"
+          className="rounded-t-3xl px-6 py-6 max-w-md mx-auto"
+        >
           <SheetHeader className="items-center">
             <div className="w-16 h-1.5 bg-neutral-200 rounded-full mb-4" />
             <SheetTitle>Kúpiť token</SheetTitle>
@@ -785,15 +808,18 @@ function BurzaTokenovInner() {
         </SheetContent>
       </Sheet>
 
-      {/* ====== SHEET: odpredať token (LEN ADMIN) ====== */}
+      {/* ===== DRAWER: ODPREDAŤ TOKEN (LEN ADMIN) ===== */}
       <Sheet open={sellSheetOpen} onOpenChange={setSellSheetOpen}>
-        <SheetContent side="bottom" className="rounded-t-3xl px-6 py-6 max-w-md mx-auto">
+        <SheetContent
+          side="bottom"
+          className="rounded-t-3xl px-6 py-6 max-w-md mx-auto"
+        >
           <SheetHeader className="items-center">
             <div className="w-16 h-1.5 bg-neutral-200 rounded-full mb-4" />
             <SheetTitle>Odpredať token</SheetTitle>
           </SheetHeader>
           <div className="mt-6 space-y-6">
-            {/* množstvo – len vizuálne, v BE sa listuje 1 token */}
+            {/* množstvo */}
             <div className="flex flex-col gap-2">
               <p className="text-xs text-neutral-400">Množstvo tokenov</p>
               <div className="flex items-center gap-3 justify-center">
@@ -853,6 +879,7 @@ function BurzaTokenovInner() {
                 disabled={!sellSelectedToken}
                 onClick={() => {
                   if (!sellSelectedToken) return;
+                  // reálne BE berie 1 tokenId
                   handleListToken(sellSelectedToken.id, sellPrice);
                   setSellSheetOpen(false);
                 }}
