@@ -321,55 +321,53 @@ function BurzaTokenovInner() {
   // === odpredaj – klient zalistuje token =========================
   // klient si nastaví množstvo N, ale do BE pôjdeme po jednom
   const handleClientListTokens = useCallback(async () => {
-    if (!user) return;
-    if (!balance) return;
+  if (!user) return;
+  if (!balance) return;
 
-    
-    // dostupné aktívne tokeny klienta
-    const activeTokens = (balance.tokens || []).filter(
-      (t) => t.status === "active" && t.minutesRemaining > 0
-    );
+  const activeTokens = (balance.tokens || []).filter(
+    (t) => t.status === "active" && t.minutesRemaining > 0
+  );
 
-    if (activeTokens.length === 0) {
-      alert("Nemáš žiadne aktívne tokeny.");
-      return;
-    }
+  if (activeTokens.length === 0) {
+    alert("Nemáš žiadne aktívne tokeny.");
+    return;
+  }
 
-    const countToList = Math.min(sellQty, activeTokens.length);
-    const price = sellPrice;
+  const countToList = Math.min(sellQty, activeTokens.length);
+  const price = sellPrice;
 
-    // urobíme viac requestov po jednom
-    for (let i = 0; i < countToList; i++) {
-      const token = activeTokens[i];
-      // každý list je 1 token
-      // BE endpoint: /friday/list { sellerId, tokenId, priceEur }
-      // necháme to presne ako máš
-      // eslint-disable-next-line no-await-in-loop
-      const res = await fetch(`${backend}/friday/list`, {
+  const jwt = await getToken();
+
+  for (let i = 0; i < countToList; i++) {
+    const token = activeTokens[i];
+
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.list_token`,
+      {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Clerk-Authorization": `Bearer ${jwt}`,
+        },
         body: JSON.stringify({
           sellerId: user.id,
           tokenId: token.id,
           priceEur: price,
         }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.success) {
-        console.warn("Listovanie zlyhalo pre token", token.id);
       }
+    );
+
+    const data = await res.json();
+
+    if (!data?.message?.success) {
+      console.warn("Listovanie zlyhalo pre token", token.id, data);
     }
-    console.log("Listujem token:", {
-  sellerId: user.id,
-  tokenId: activeTokens[0]?.id,
-  priceEur: sellPrice,
-});
+  }
 
+  await Promise.all([fetchBalance(), fetchListings()]);
+  setSellSheetOpen(false);
+}, [user, balance, sellQty, sellPrice, fetchBalance, fetchListings, getToken]);
 
-    // po listovaní obnovíme dáta
-    await Promise.all([fetchBalance(), fetchListings()]);
-    setSellSheetOpen(false);
-  }, [user, balance, sellQty, sellPrice, backend, fetchBalance, fetchListings]);
 
   // === admin akcie (nechávam) =============================
   const handleAdminMint = useCallback(async () => {
