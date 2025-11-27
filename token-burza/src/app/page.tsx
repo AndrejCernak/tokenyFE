@@ -374,7 +374,7 @@ function BurzaTokenovInner() {
   if (role !== "admin") return;
 
   const res = await fetch(
-  `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.admin_mint`,
+  `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.admin.admin_mint`,
   {
     method: "POST",
     headers: await authHeaders(),
@@ -385,6 +385,7 @@ function BurzaTokenovInner() {
     }),
   }
 );
+
 
   const data = await res.json();
 
@@ -407,17 +408,18 @@ function BurzaTokenovInner() {
       return;
     }
 
-        const res = await fetch(
-        `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.admin_set_price`,
-        {
-          method: "POST",
-          headers: await authHeaders(),
-          body: JSON.stringify({
-            newPrice: price,
-            repriceTreasury: false,
-          }),
-        }
-      );
+       const res = await fetch(
+  `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.admin.admin_set_price`,
+  {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify({
+      newPrice: price,
+      repriceTreasury: false,
+    }),
+  }
+);
+
 
     const data = await res.json();
     if (res.ok && data?.success) {
