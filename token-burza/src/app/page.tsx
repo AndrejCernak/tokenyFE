@@ -169,7 +169,7 @@ function BurzaTokenovInner() {
   const fetchBalance = useCallback(async () => {
   if (!user) return;
 
-  const jwt = await getToken();
+  const jwt = await getToken({ template: "market" });
   const base = process.env.NEXT_PUBLIC_FRAPPE_URL;
 
   const res = await fetch(
@@ -194,6 +194,7 @@ function BurzaTokenovInner() {
 
 
 
+
   const fetchListings = useCallback(async () => {
   const res = await fetch(`${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.listings`);
   const data = await res.json();
@@ -207,7 +208,7 @@ function BurzaTokenovInner() {
     const init = async () => {
       if (!isSignedIn || !user) return;
       try {
-        const jwt = await getToken();
+      const jwt = await getToken({ template: "market" });
         await fetch(`${backend}/friday/sync-user`, {
           method: "POST",
           headers: {
@@ -231,7 +232,7 @@ function BurzaTokenovInner() {
   const authHeaders = useCallback(async () => {
     return {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${await getToken()}`,
+      Authorization: `Bearer ${await getToken({ template: "market" })}`
     };
   }, [getToken]);
 
