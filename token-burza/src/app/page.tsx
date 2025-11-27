@@ -87,6 +87,9 @@ function BurzaTokenovInner() {
   const role = (user?.publicMetadata.role as string) || "client";
 
   const backend = process.env.NEXT_PUBLIC_BACKEND_URL!;
+  // nahrad starú backend premennú
+const frappeBase = "https://bcservices.f.frappe.cloud/api/method/bcservices.api";
+
   const currentYear = useMemo(() => new Date().getFullYear(), []);
   const [supply, setSupply] = useState<SupplyInfo | null>(null);
 
@@ -164,18 +167,33 @@ function BurzaTokenovInner() {
   }, [backend, currentYear]);
 
   const fetchBalance = useCallback(async () => {
-    if (!user) return;
-    const res = await fetch(`${backend}/friday/balance/${user.id}`);
-    const data = (await res.json()) as FridayBalance;
-    setBalance(data);
-  }, [backend, user]);
+  if (!user) return;
+  const jwt = await getToken();
+  const res = await fetch(
+    `${frappeBase}.user.balance?userId=${user.id}`,
+    {
+      headers: { Authorization: `Bearer ${jwt}` },
+    }
+  );
+  const data = await res.json();
+  if (data?.userId) {
+    setBalance({
+      userId: data.userId,
+      totalMinutes: data.totalMinutes,
+      tokens: data.tokens,
+    });
+  }
+}, [frappeBase, user, getToken]);
+
 
   const fetchListings = useCallback(async () => {
-    // zobrazíme aj user listingy aj admin listingy – BE to už mieša
-    const res = await fetch(`${backend}/friday/listings?take=100`);
-    const data = await res.json();
-    setListings(data?.items || []);
-  }, [backend]);
+  const res = await fetch(`${frappeBase}.market.listings`);
+  const data = await res.json();
+  if (data?.success) {
+    setListings(data.items || []);
+  }
+}, [frappeBase]);
+
 
   // sync user
   useEffect(() => {
