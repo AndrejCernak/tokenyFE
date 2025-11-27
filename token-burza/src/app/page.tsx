@@ -176,21 +176,23 @@ function BurzaTokenovInner() {
     `${base}/api/method/bcservices.api.user.balance?userId=${user.id}`,
     {
       headers: {
-        "X-Clerk-Authorization": `Bearer ${jwt}`,  // 🔥 FIX
+        "X-Clerk-Authorization": `Bearer ${jwt}`,
       },
     }
   );
 
   const data = await res.json();
+  const msg = data?.message; // 🔥 Frappe wrapper
 
-  if (data?.userId) {
+  if (msg?.userId) {
     setBalance({
-      userId: data.userId,
-      totalMinutes: data.totalMinutes,
-      tokens: data.tokens,
+      userId: msg.userId,
+      totalMinutes: msg.totalMinutes,
+      tokens: msg.tokens,
     });
   }
 }, [user, getToken]);
+
 
 
 
