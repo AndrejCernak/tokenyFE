@@ -416,13 +416,17 @@ function BurzaTokenovInner() {
   `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.admin.admin_set_price`,
   {
     method: "POST",
-    headers: await authHeaders(),
+    headers: {
+      "Content-Type": "application/json",
+      "X-Clerk-Authorization": `Bearer ${await getToken()}`,
+    },
     body: JSON.stringify({
       newPrice: price,
-      repriceTreasury: false,
+      repriceTreasury: false, // alebo true
     }),
   }
 );
+
 
 
     const data = await res.json();
