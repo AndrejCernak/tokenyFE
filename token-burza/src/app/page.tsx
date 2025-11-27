@@ -106,19 +106,23 @@ function BurzaTokenovInner() {
   const fetchHistory = useCallback(async () => {
   if (!user) return;
 
-  const res = await fetch(`${backend}/friday/history/${user.id}`);
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.history?userId=${user.id}`
+  );
+
   const data = await res.json();
+  const msg = data?.message;
 
-  if (data?.success && Array.isArray(data.items)) {
+  if (msg?.success && Array.isArray(msg.items)) {
     setHistory(
-  data.items.map((tx: HistoryItem) => ({
-    ...tx,
-    createdAt: new Date(tx.createdAt),
-  }))
-);
-
+      msg.items.map((tx: HistoryItem) => ({
+        ...tx,
+        createdAt: new Date(tx.createdAt),
+      }))
+    );
   }
-}, [backend, user]);
+}, [user]);
+
 
 
   useEffect(() => {
