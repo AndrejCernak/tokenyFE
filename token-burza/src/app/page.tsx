@@ -373,7 +373,9 @@ function BurzaTokenovInner() {
   const handleAdminMint = useCallback(async () => {
   if (role !== "admin") return;
 
-  const res = await fetch(`${backend}/friday/admin/mint`, {
+  const res = await fetch(
+  `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.admin_mint`,
+  {
     method: "POST",
     headers: await authHeaders(),
     body: JSON.stringify({
@@ -381,7 +383,9 @@ function BurzaTokenovInner() {
       priceEur: mintPrice,
       year: mintYear,
     }),
-  });
+  }
+);
+
   const data = await res.json();
 
   if (res.ok && data?.success) {
@@ -403,11 +407,18 @@ function BurzaTokenovInner() {
       return;
     }
 
-    const res = await fetch(`${backend}/friday/admin/set-price`, {
-      method: "POST",
-      headers: await authHeaders(),
-      body: JSON.stringify({ newPrice: price, repriceTreasury: false }),
-    });
+        const res = await fetch(
+        `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.admin_set_price`,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify({
+            newPrice: price,
+            repriceTreasury: false,
+          }),
+        }
+      );
+
     const data = await res.json();
     if (res.ok && data?.success) {
       alert(`Cena nastavená na ${price.toFixed(2)} €`);
