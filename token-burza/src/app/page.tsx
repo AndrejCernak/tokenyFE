@@ -197,8 +197,15 @@ function BurzaTokenovInner() {
   const fetchListings = useCallback(async () => {
   const res = await fetch(`${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.listings`);
   const data = await res.json();
-  if (data?.success) setListings(data.items);
+
+  // Frappe always wraps return dict in `message`
+  const msg = data?.message;
+
+  if (msg?.success) {
+    setListings(msg.items);
+  }
 }, []);
+
 
 
 
