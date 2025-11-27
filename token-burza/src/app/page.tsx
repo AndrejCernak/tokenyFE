@@ -377,7 +377,10 @@ function BurzaTokenovInner() {
   `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.admin.admin_mint`,
   {
     method: "POST",
-    headers: await authHeaders(),
+    headers: {
+      "Content-Type": "application/json",
+      "X-Clerk-Authorization": `Bearer ${await getToken()}`
+    },
     body: JSON.stringify({
       quantity: mintQty,
       priceEur: mintPrice,
@@ -385,6 +388,7 @@ function BurzaTokenovInner() {
     }),
   }
 );
+
 
 
   const data = await res.json();
