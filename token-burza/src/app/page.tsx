@@ -88,7 +88,7 @@ function BurzaTokenovInner() {
 
   const backend = process.env.NEXT_PUBLIC_BACKEND_URL!;
   // nahrad starú backend premennú
-const frappeBase = "https://bcservices.f.frappe.cloud/api/method/bcservices.api";
+  const frappeBase = `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api`;
 
   const currentYear = useMemo(() => new Date().getFullYear(), []);
   const [supply, setSupply] = useState<SupplyInfo | null>(null);
@@ -168,14 +168,21 @@ const frappeBase = "https://bcservices.f.frappe.cloud/api/method/bcservices.api"
 
   const fetchBalance = useCallback(async () => {
   if (!user) return;
+
   const jwt = await getToken();
+  const base = process.env.NEXT_PUBLIC_FRAPPE_URL;
+
   const res = await fetch(
-    `${frappeBase}.user.balance?userId=${user.id}`,
+    `${base}/api/method/bcservices.api.user.balance?userId=${user.id}`,
     {
-      headers: { Authorization: `Bearer ${jwt}` },
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+      },
     }
   );
+
   const data = await res.json();
+
   if (data?.userId) {
     setBalance({
       userId: data.userId,
@@ -183,16 +190,16 @@ const frappeBase = "https://bcservices.f.frappe.cloud/api/method/bcservices.api"
       tokens: data.tokens,
     });
   }
-}, [frappeBase, user, getToken]);
+}, [user, getToken]);
+
 
 
   const fetchListings = useCallback(async () => {
-  const res = await fetch(`${frappeBase}.market.listings`);
+  const res = await fetch(`${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.listings`);
   const data = await res.json();
-  if (data?.success) {
-    setListings(data.items || []);
-  }
-}, [frappeBase]);
+  if (data?.success) setListings(data.items);
+}, []);
+
 
 
   // sync user
