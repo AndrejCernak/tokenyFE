@@ -101,6 +101,8 @@ function BurzaTokenovInner() {
   const [mintQty, setMintQty] = useState<number>(1);
   const [mintPrice, setMintPrice] = useState<number>(450);
   const [mintYear, setMintYear] = useState<number>(currentYear);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
 
 
   const fetchHistory = useCallback(async () => {
@@ -374,69 +376,77 @@ function BurzaTokenovInner() {
   if (role !== "admin") return;
 
   const res = await fetch(
-  `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.admin.admin_mint`,
-  {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Clerk-Authorization": `Bearer ${await getToken()}`
-    },
-    body: JSON.stringify({
-      quantity: mintQty,
-      priceEur: mintPrice,
-      year: mintYear,
-    }),
-  }
-);
-
-
+    `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.admin.admin_mint`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Clerk-Authorization": `Bearer ${await getToken()}`,
+      },
+      body: JSON.stringify({
+        quantity: mintQty,
+        priceEur: mintPrice,
+        year: mintYear,
+      }),
+    }
+  );
 
   const data = await res.json();
 
   if (res.ok && data?.success) {
-    alert(`✅ Vytvorených ${mintQty} tokenov pre rok ${mintYear} @ ${mintPrice.toFixed(2)} €`);
+    setStatusMessage(`Vytvorených ${mintQty} tokenov pre rok ${mintYear}.`);
+    setTimeout(() => setStatusMessage(null), 3500);
+
     await fetchSupply();
     setMintSheetOpen(false);
   } else {
-    alert(data?.message || "Mint zlyhal.");
+    setStatusMessage("Mint zlyhal.");
+    setTimeout(() => setStatusMessage(null), 3500);
   }
-}, [backend, role, mintQty, mintPrice, mintYear, fetchSupply, authHeaders]);
+}, [role, mintQty, mintPrice, mintYear, fetchSupply, getToken]);
+
 
 
   const handleAdminSetPrice = useCallback(async () => {
-    if (role !== "admin") return;
-    const priceStr = prompt("Nová cena v pokladnici (€):");
-    const price = Number((priceStr || "").replace(",", "."));
-    if (!Number.isFinite(price) || price <= 0) {
-      alert("Neplatná cena.");
-      return;
-    }
+  if (role !== "admin") return;
 
-       const res = await fetch(
-  `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.admin.admin_set_price`,
-  {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Clerk-Authorization": `Bearer ${await getToken()}`,
-    },
-    body: JSON.stringify({
-      newPrice: price,
-      repriceTreasury: false, // alebo true
-    }),
+  const priceStr = prompt("Nová cena v pokladnici (€):");
+  const price = Number((priceStr || "").replace(",", "."));
+
+  if (!Number.isFinite(price) || price <= 0) {
+    setStatusMessage("Neplatná cena.");
+    setTimeout(() => setStatusMessage(null), 3500);
+    return;
   }
-);
 
-
-
-    const data = await res.json();
-    if (res.ok && data?.success) {
-      alert(`Cena nastavená na ${price.toFixed(2)} €`);
-      await fetchSupply();
-    } else {
-      alert(data?.message || "Zmena ceny zlyhala.");
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.admin.admin_set_price`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Clerk-Authorization": `Bearer ${await getToken()}`,
+      },
+      body: JSON.stringify({
+        newPrice: price,
+        repriceTreasury: false,
+      }),
     }
-  }, [backend, role, fetchSupply, authHeaders]);
+  );
+
+  const data = await res.json();
+
+  if (res.ok && data?.success) {
+    setStatusMessage(`Cena nastavená na ${price.toFixed(2)} €.`);
+    setTimeout(() => setStatusMessage(null), 3500);
+
+    await fetchSupply();
+  } else {
+    setStatusMessage("Zmena ceny zlyhala.");
+    setTimeout(() => setStatusMessage(null), 3500);
+  }
+}, [role, fetchSupply, getToken]);
+
 
   function handleCancelListing(id: string): void {
     throw new Error("Function not implemented.");
@@ -445,6 +455,18 @@ function BurzaTokenovInner() {
   // ==================== RENDER ====================
   return (
     <main className="min-h-screen bg-white">
+      {statusMessage && (
+  <div className="
+    fixed top-4 left-1/2 -translate-x-1/2 
+    bg-black text-white text-sm
+    px-5 py-3 rounded-full shadow-lg
+    animate-fade-in
+    z-50
+  ">
+    {statusMessage}
+  </div>
+)}
+
       {/* sticky header */}
       <header className="sticky top-0 z-30 w-full bg-white border-b border-neutral-200">
         <div className="max-w-6xl mx-auto px-4 md:px-6 h-14 flex items-center justify-between">
@@ -478,21 +500,17 @@ function BurzaTokenovInner() {
         <div className="flex items-center justify-between mb-5">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Tokeny</h1>
-            <p className="text-sm text-neutral-500">
-              Recent transactions from your store.
-            </p>
           </div>
           <SignedIn>
             <Button
               variant="outline"
-              className="hidden md:inline-flex rounded-full"
+              className="hidden"
               onClick={() => {
                 fetchBalance();
                 fetchListings();
                 fetchSupply();
               }}
             >
-              Obnoviť dáta
             </Button>
           </SignedIn>
         </div>
@@ -522,9 +540,6 @@ function BurzaTokenovInner() {
                     <CardTitle className="text-lg font-semibold">
                       Burza tokenov
                     </CardTitle>
-                    <p className="text-xs text-neutral-400 mt-1">
-                      Recent transactions from your store.
-                    </p>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
@@ -655,7 +670,7 @@ function BurzaTokenovInner() {
                     }}
                     disabled={tokensActive.length === 0}
                   >
-                    Odpredať
+                    Zalistovať
                   </Button>
                 </CardContent>
               </Card>
@@ -761,16 +776,7 @@ function BurzaTokenovInner() {
                       >
                         Nastaviť cenu
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          fetchSupply();
-                          fetchListings();
-                        }}
-                      >
-                        Obnoviť
-                      </Button>
+
                     </div>
                   </CardContent>
                 </Card>
