@@ -128,7 +128,7 @@ function BurzaTokenovInner() {
 
 
   useEffect(() => {
-    if (isSignedIn) fetchHistory();
+  if (isSignedIn && role !== "admin") fetchHistory();
   }, [isSignedIn, fetchHistory]);
 
 
@@ -199,9 +199,6 @@ function BurzaTokenovInner() {
   }
 }, [user, getToken]);
 
-
-
-
   const fetchListings = useCallback(async () => {
   const res = await fetch(`${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.listings`);
   const data = await res.json();
@@ -213,9 +210,6 @@ function BurzaTokenovInner() {
     setListings(msg.items);
   }
 }, []);
-
-
-
 
   // sync user
   useEffect(() => {
@@ -240,7 +234,7 @@ function BurzaTokenovInner() {
   useEffect(() => {
     fetchSupply();
     fetchListings();
-    if (isSignedIn) fetchBalance();
+  if (isSignedIn && role !== "admin") fetchBalance();
   }, [isSignedIn, fetchSupply, fetchBalance, fetchListings]);
 
   const authHeaders = useCallback(async () => {
@@ -393,7 +387,7 @@ function BurzaTokenovInner() {
 
   const data = await res.json();
 
-  if (res.ok && data?.success) {
+  if (res.ok && data?.message?.success) {
     setStatusMessage(`Vytvorených ${mintQty} tokenov pre rok ${mintYear}.`);
     setTimeout(() => setStatusMessage(null), 3500);
 
@@ -404,6 +398,7 @@ function BurzaTokenovInner() {
     setTimeout(() => setStatusMessage(null), 3500);
   }
 }, [role, mintQty, mintPrice, mintYear, fetchSupply, getToken]);
+
 
 
 
@@ -436,7 +431,7 @@ function BurzaTokenovInner() {
 
   const data = await res.json();
 
-  if (res.ok && data?.success) {
+  if (res.ok && data?.message?.success) {
     setStatusMessage(`Cena nastavená na ${price.toFixed(2)} €.`);
     setTimeout(() => setStatusMessage(null), 3500);
 
@@ -516,21 +511,39 @@ function BurzaTokenovInner() {
         </div>
 
         <SignedIn>
-          <Tabs defaultValue="burza" className="space-y-5">
-            <TabsList className="bg-transparent p-0 gap-3">
-              <TabsTrigger
-                value="burza"
-                className="rounded-full bg-black text-white px-6 py-2 text-sm data-[state=inactive]:bg-white data-[state=inactive]:text-neutral-900 border border-transparent data-[state=inactive]:border-neutral-200"
-              >
-                Burza tokenov
-              </TabsTrigger>
+        <Tabs defaultValue="burza" className="space-y-5">
+          <TabsList className="bg-transparent p-0 gap-3">
+            <TabsTrigger
+              value="burza"
+              className="rounded-full bg-black text-white px-6 py-2 text-sm 
+                data-[state=inactive]:bg-white data-[state=inactive]:text-neutral-900 
+                border border-transparent data-[state=inactive]:border-neutral-200"
+            >
+              Burza tokenov
+            </TabsTrigger>
+
+            {/* klientská sekcia */}
+            {role !== "admin" && (
               <TabsTrigger
                 value="moje"
-                className="rounded-full bg-white text-neutral-900 px-6 py-2 text-sm border border-neutral-200 data-[state=active]:bg-black data-[state=active]:text-white"
+                className="rounded-full bg-white text-neutral-900 px-6 py-2 text-sm border 
+                  border-neutral-200 data-[state=active]:bg-black data-[state=active]:text-white"
               >
                 Moje tokeny
               </TabsTrigger>
-            </TabsList>
+            )}
+
+            {/* admin sekcia */}
+            {role === "admin" && (
+              <TabsTrigger
+                value="admin"
+                className="rounded-full bg-white text-neutral-900 px-6 py-2 text-sm border 
+                  border-neutral-200 data-[state=active]:bg-black data-[state=active]:text-white"
+              >
+                Administrácia
+              </TabsTrigger>
+            )}
+          </TabsList>
 
             {/* ============ TAB 1: BURZA – IBA BURZA ============ */}
             <TabsContent value="burza">
@@ -640,7 +653,9 @@ function BurzaTokenovInner() {
                 </CardContent>
               </Card>
             </TabsContent>
+  
             {/* ============ TAB 2: MOJE TOKENY ============ */}
+            {role !== "admin" && (
             <TabsContent value="moje" className="space-y-5">
               {/* vrchný riadok ako na obrázku */}
               <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
@@ -675,114 +690,113 @@ function BurzaTokenovInner() {
                 </CardContent>
               </Card>
 
+              {/* =============================== */}
+
               {/* História transakcií */}
-<Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
-  <CardHeader className="pb-3">
-    <CardTitle className="text-base font-semibold">
-      História transakcií
-    </CardTitle>
-    <p className="text-xs text-neutral-400">
-      Záznamy o nákupoch a predajoch tokenov.
-    </p>
-  </CardHeader>
-  <CardContent className="pt-0">
-    <div className="grid grid-cols-[80px,1fr,90px] text-xs text-neutral-400 py-2 border-b">
-      <span>Dátum</span>
-      <span>Typ</span>
-      <span className="text-right">Suma</span>
-    </div>
-    <ScrollArea className="h-[280px]">
-      <div className="flex flex-col">
-        {history.length === 0 ? (
-          <div className="py-6 text-center text-neutral-400 text-sm">
-            Žiadne transakcie
-          </div>
-        ) : (
-          history.slice(0, 8).map((tx) => (
-            <div
-              key={tx.id}
-              className="grid grid-cols-[80px,1fr,90px] items-center py-3 text-sm border-b last:border-b-0"
-            >
-              {/* dátum */}
-              <span className="text-neutral-500">
-                {new Date(tx.createdAt).toLocaleDateString("sk-SK")}
-              </span>
+              <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold">
+                    História transakcií
+                  </CardTitle>
+                  <p className="text-xs text-neutral-400">
+                    Záznamy o nákupoch a predajoch tokenov.
+                  </p>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="grid grid-cols-[80px,1fr,90px] text-xs text-neutral-400 py-2 border-b">
+                    <span>Dátum</span>
+                    <span>Typ</span>
+                    <span className="text-right">Suma</span>
+                  </div>
+                  <ScrollArea className="h-[280px]">
+                    <div className="flex flex-col">
+                      {history.length === 0 ? (
+                        <div className="py-6 text-center text-neutral-400 text-sm">
+                          Žiadne transakcie
+                        </div>
+                      ) : (
+                        history.slice(0, 8).map((tx) => (
+                          <div
+                            key={tx.id}
+                            className="grid grid-cols-[80px,1fr,90px] items-center py-3 text-sm border-b last:border-b-0"
+                          >
+                            {/* dátum */}
+                            <span className="text-neutral-500">
+                              {new Date(tx.createdAt).toLocaleDateString("sk-SK")}
+                            </span>
 
-              {/* typ transakcie */}
-              <div className="flex flex-col leading-tight">
-                <span className="font-medium text-neutral-800">
-                  {tx.type === "purchase"
-                    ? "Nákup z pokladnice"
-                    : tx.direction === "sell"
-                    ? "Predaj tokenu"
-                    : "Nákup tokenu"}
-                </span>
-                <span className="text-xs text-neutral-400">
-                  {tx.year} • {tx.id?.slice(0, 10)}…
-                </span>
-              </div>
+                            {/* typ transakcie */}
+                            <div className="flex flex-col leading-tight">
+                              <span className="font-medium text-neutral-800">
+                                {tx.type === "purchase"
+                                  ? "Nákup z pokladnice"
+                                  : tx.direction === "sell"
+                                  ? "Predaj tokenu"
+                                  : "Nákup tokenu"}
+                              </span>
+                              <span className="text-xs text-neutral-400">
+                                {tx.year} • {tx.id?.slice(0, 10)}…
+                              </span>
+                            </div>
 
-              {/* cena */}
-              <span
-                className={`text-right font-semibold ${
-                  tx.direction === "sell"
-                    ? "text-emerald-500"
-                    : "text-red-500"
-                }`}
-              >
-                {tx.direction === "sell" ? "+" : "-"}
-                {tx.price.toFixed(2)} €
-              </span>
-            </div>
-          ))
-        )}
-      </div>
-    </ScrollArea>
-  </CardContent>
-</Card>
-
-
-              {/* admin panel dolu */}
-              {role === "admin" ? (
-                <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
-                  <CardContent className="pt-4 space-y-3">
-                    <p className="text-xs text-neutral-400">
-                      Admin – pokladnica
-                    </p>
-                    <p className="text-xs text-neutral-500">
-                      Cena:{" "}
-                      <span className="font-semibold">
-                        {supply ? supply.priceEur.toFixed(2) : "…"} €
-                      </span>{" "}
-                      • V pokladnici:{" "}
-                      <span className="font-semibold">
-                        {supply?.treasuryAvailable ?? 0}
-                      </span>{" "}
-                      (rok {currentYear})
-                    </p>
-                    <div className="flex gap-2 flex-wrap">
-                      <Button
-                        size="sm"
-                        className="bg-black hover:bg-black/80 text-white"
-                        onClick={() => setMintSheetOpen(true)}
-                      >
-                        Mint
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleAdminSetPrice}
-                      >
-                        Nastaviť cenu
-                      </Button>
-
+                            {/* cena */}
+                            <span
+                              className={`text-right font-semibold ${
+                                tx.direction === "sell"
+                                  ? "text-emerald-500"
+                                  : "text-red-500"
+                              }`}
+                            >
+                              {tx.direction === "sell" ? "+" : "-"}
+                              {tx.price.toFixed(2)} €
+                            </span>
+                          </div>
+                        ))
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
-              ) : null}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
             </TabsContent>
+            
+            )}
+            {/* TAB 3 — ADMIN PANEL (iba admin) */}
+          {/* =============================== */}
+          {role === "admin" && (
+            <TabsContent value="admin" className="space-y-5">
+              <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">Administrácia tokenov</CardTitle>
+                  <p className="text-xs text-neutral-400">Mintovanie a nastavenia pokladnice.</p>
+                </CardHeader>
+
+                <CardContent className="space-y-6">
+                  <div className="text-sm text-neutral-500">
+                    <p>Cena tokenu: <strong>{supply?.priceEur} €</strong></p>
+                    <p>Dostupné v pokladnici: <strong>{supply?.treasuryAvailable ?? 0}</strong></p>
+                    <p>Rok: <strong>{currentYear}</strong></p>
+                  </div>
+
+                  <Button
+                    className="w-full rounded-full bg-black text-white py-2"
+                    onClick={() => setMintSheetOpen(true)}
+                  >
+                    🪙 Mintovať tokeny
+                  </Button>
+
+                  <Button
+                    className="w-full rounded-full border border-neutral-300"
+                    variant="outline"
+                    onClick={handleAdminSetPrice}
+                  >
+                    💶 Zmeniť cenu tokenov
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            )}
           </Tabs>
+          
 
           <p className="text-[10px] text-neutral-400 mt-6">
             Token = právo na 60 min v piatok. Nevyužité tokeny sa prenášajú do ďalšieho roka.
