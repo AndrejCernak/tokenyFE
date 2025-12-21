@@ -479,7 +479,7 @@ function BurzaTokenovInner() {
             </div>
             <SignedOut>
               <SignInButton>
-                <Button className="rounded-full bg-black hover:bg-black/80 h-8 px-4 text-xs">
+                <Button>
                   Prihlásiť sa
                 </Button>
               </SignInButton>
@@ -783,14 +783,6 @@ function BurzaTokenovInner() {
                   >
                     🪙 Mintovať tokeny
                   </Button>
-
-                  <Button
-                    className="w-full rounded-full border border-neutral-300"
-                    variant="outline"
-                    onClick={handleAdminSetPrice}
-                  >
-                    💶 Zmeniť cenu tokenov
-                  </Button>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1043,8 +1035,8 @@ function BurzaTokenovInner() {
       {/* Potvrdiť */}
       <div className="flex flex-col gap-3">
         <Button
-          variant="default"
-          className={cn("w-full rounded-xl", role === "admin" && "text-white")}
+          variant="outline"
+          className={cn("w-full rounded-xl", role === "admin" && "border-neutral-200")}
           onClick={handleAdminMint}
         >
           Vytvoriť tokeny
