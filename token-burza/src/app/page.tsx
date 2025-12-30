@@ -446,7 +446,7 @@ function BurzaTokenovInner() {
   function handleCancelListing(id: string): void {
     throw new Error("Function not implemented.");
   }
-
+ 
   // ==================== RENDER ====================
   return (
     <main className="min-h-screen bg-white">
@@ -578,7 +578,7 @@ function BurzaTokenovInner() {
                             <span className="text-sm font-semibold tracking-tight">
                               {supply.priceEur.toFixed(2)} €
                             </span>
-                            <Button
+                           {/* <Button
                               size="sm"
                               className="rounded-full bg-black text-white text-xs"
                               onClick={() => {
@@ -589,6 +589,8 @@ function BurzaTokenovInner() {
                             >
                               Kúpiť
                             </Button>
+                            */}
+
                           </div>
                         </div>
                       )}
@@ -835,7 +837,7 @@ function BurzaTokenovInner() {
             </div>
           </div>
           <div className="mt-6 flex flex-col gap-3">
-            <Button
+            {/*<Button
               variant="default"
               className="w-full rounded-xl"
               onClick={() => {
@@ -853,6 +855,8 @@ function BurzaTokenovInner() {
             >
               Kúpiť
             </Button>
+            */}
+             
 
             <SheetClose asChild>
               <Button
