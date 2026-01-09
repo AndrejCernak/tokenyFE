@@ -76,6 +76,13 @@ type HistoryItem = {
   year: number;
   createdAt: string | Date;
 };
+type CallLog = {
+  name: string;
+  zaciatok_datum: string;
+  koniec_datum: string;
+  trvanie_s: number;
+  pouzity_token: string;
+};
 
 
 function BurzaTokenovInner() {
@@ -102,6 +109,7 @@ function BurzaTokenovInner() {
   const [mintPrice, setMintPrice] = useState<number>(450);
   const [mintYear, setMintYear] = useState<number>(currentYear);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [callLogs, setCallLogs] = useState<CallLog[]>([]);
 
 
 
@@ -125,13 +133,30 @@ function BurzaTokenovInner() {
   }
 }, [user]);
 
-
+const fetchCallLogs = useCallback(async () => {
+  if (!user) return;
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.call_logs?userId=${user.id}`
+    );
+    const data = await res.json();
+    if (data?.message?.success) {
+      setCallLogs(data.message.items);
+    }
+  } catch (e) {
+    console.error("Chyba pri načítaní hovorov:", e);
+  }
+}, [user]);
 
   useEffect(() => {
-  if (isSignedIn && role !== "admin") fetchHistory();
-  }, [isSignedIn, fetchHistory]);
+  if (isSignedIn && role !== "admin") {
+    fetchHistory();
+    fetchCallLogs(); // Spustí načítanie hovorov
+  }
+}, [isSignedIn, role, fetchHistory, fetchCallLogs]);
 
 
+  
 
   // drawer – kúpa
   const [buySheetOpen, setBuySheetOpen] = useState(false);
@@ -522,15 +547,25 @@ function BurzaTokenovInner() {
               Burza tokenov
             </TabsTrigger>
 
-            {/* klientská sekcia */}
+            {/* klientská sekcia - Moje tokeny aj Hovory patria sem */}
             {role !== "admin" && (
-              <TabsTrigger
-                value="moje"
-                className="rounded-full bg-white text-neutral-900 px-6 py-2 text-sm border 
-                  border-neutral-200 data-[state=active]:bg-black data-[state=active]:text-white"
-              >
-                Moje tokeny
-              </TabsTrigger>
+              <>
+                <TabsTrigger
+                  value="moje"
+                  className="rounded-full bg-white text-neutral-900 px-6 py-2 text-sm border 
+                    border-neutral-200 data-[state=active]:bg-black data-[state=active]:text-white"
+                >
+                  Moje tokeny
+                </TabsTrigger>
+                
+                <TabsTrigger
+                  value="hovory"
+                  className="rounded-full bg-white text-neutral-900 px-6 py-2 text-sm border 
+                    border-neutral-200 data-[state=active]:bg-black data-[state=active]:text-white"
+                >
+                  Záznam hovorov
+                </TabsTrigger>
+              </>
             )}
 
             {/* admin sekcia */}
@@ -655,6 +690,47 @@ function BurzaTokenovInner() {
                 </CardContent>
               </Card>
             </TabsContent>
+            {/* ============ TAB: HOVORY ============ */}
+            {role !== "admin" && (
+              <TabsContent value="hovory">
+                <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
+                  <CardHeader>
+                    <CardTitle className="text-base font-semibold">Záznam hovorov</CardTitle>
+                    <p className="text-xs text-neutral-400">Prehľad uskutočnených hovorov a čerpanie tokenov.</p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-[1fr,1fr,80px,100px] text-[10px] uppercase tracking-wider text-neutral-400 pb-2 border-b">
+                      <span>Začiatok</span>
+                      <span>Koniec</span>
+                      <span className="text-center">Trvanie</span>
+                      <span className="text-right">Token</span>
+                    </div>
+                    <ScrollArea className="h-[400px]">
+                      {callLogs.length === 0 ? (
+                        <div className="py-10 text-center text-sm text-neutral-400">Žiadne záznamy o hovoroch</div>
+                      ) : (
+                        callLogs.map((log) => (
+                          <div key={log.name} className="grid grid-cols-[1fr,1fr,80px,100px] items-center py-4 text-sm border-b last:border-0">
+                            <span className="text-neutral-700">
+                              {new Date(log.zaciatok_datum).toLocaleString("sk-SK")}
+                            </span>
+                            <span className="text-neutral-700">
+                              {new Date(log.koniec_datum).toLocaleString("sk-SK")}
+                            </span>
+                            <span className="text-center font-medium">
+                              {Math.floor(log.trvanie_s / 60)}m {log.trvanie_s % 60}s
+                            </span>
+                            <span className="text-right text-xs font-mono text-neutral-500">
+                              {log.pouzity_token ? log.pouzity_token.slice(-6) : "---"}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
   
             {/* ============ TAB 2: MOJE TOKENY ============ */}
             {role !== "admin" && (
