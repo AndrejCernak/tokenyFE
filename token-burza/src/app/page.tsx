@@ -172,10 +172,11 @@ const fetchCallLogs = useCallback(async () => {
   const [sellQty, setSellQty] = useState<number>(1);
 
   // === odvodené ===
+  // Nájdi tento blok (okolo riadku 175) a uprav ho:
   const tokensActive = useMemo(
     () =>
       (balance?.tokens || []).filter(
-        (t) => t.status === "active" && t.minutesRemaining > 0
+        (t) => t.status === "active" && t.minutesRemaining === 60 // ZMENA: z > 0 na === 60
       ),
     [balance]
   );
@@ -345,20 +346,18 @@ const fetchCallLogs = useCallback(async () => {
   const handleClientListTokens = useCallback(async () => {
   if (!user || !balance) return;
 
-  // OPRAVA: Ak je cena náhodou NaN, nastavíme bezpečnú hodnotu pred odoslaním
   const safePrice = isNaN(sellPrice) ? 450 : sellPrice;
 
-  const activeTokens = (balance.tokens || []).filter(
-    (t) => t.status === "active" && t.minutesRemaining > 0
+  // Tu tiež filtrujeme len tie 60-minútové
+  const sellableTokens = (balance.tokens || []).filter(
+    (t) => t.status === "active" && t.minutesRemaining === 60
   );
 
-  // Bezpečnostné overenie počtu
-  const countToList = Math.min(sellQty, activeTokens.length);
-
+  const countToList = Math.min(sellQty, sellableTokens.length);
   const jwt = await getToken();
 
   for (let i = 0; i < countToList; i++) {
-    const token = activeTokens[i];
+    const token = sellableTokens[i]; // Berieme zo zoznamu validných
     await fetch(
       `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.list_token`,
       {
@@ -370,7 +369,7 @@ const fetchCallLogs = useCallback(async () => {
         body: JSON.stringify({
           sellerId: user.id,
           tokenId: token.id,
-          priceEur: safePrice, // Posielame ošetrenú cenu
+          priceEur: safePrice,
         }),
       }
     );
@@ -723,42 +722,51 @@ const fetchCallLogs = useCallback(async () => {
               </TabsContent>
             )}
   
-            {/* ============ TAB 2: MOJE TOKENY ============ */}
+            {/* TAB 2: MOJE TOKENY */}
             {role !== "admin" && (
-            <TabsContent value="moje" className="space-y-5">
-              {/* vrchný riadok ako na obrázku */}
-              <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
-                <CardContent className="pt-6 pb-5 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs text-neutral-400 mb-1">Moje tokeny</p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl font-semibold tracking-tight">
-                        {balance?.totalMinutes
-                          ? (balance.totalMinutes / 60).toFixed(2)
-                          : "0,00"}
-                      </span>
-                      <span className="text-sm text-neutral-400">h</span>
+              <TabsContent value="moje" className="space-y-5">
+                <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
+                  <CardContent className="pt-6 pb-5 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs text-neutral-400 mb-1">Moje tokeny</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl font-semibold tracking-tight">
+                          {balance?.totalMinutes
+                            ? (balance.totalMinutes / 60).toFixed(2)
+                            : "0,00"}
+                        </span>
+                        <span className="text-sm text-neutral-400">h</span>
+                      </div>
+                      {/* Dynamický text podľa toho, či sú tokeny celé alebo načaté */}
+                      <p className="text-xs text-neutral-400 mt-1">
+                        {tokensActive.length} pripravených na predaj
+                      </p>
                     </div>
-                    <p className="text-xs text-neutral-400 mt-1">
-                      {tokensActive.length} aktívnych
-                    </p>
-                  </div>
-                  {/* tu už „Odpredať“ pre KLIENTA */}
-                  <Button
-                    variant="outline"
-                    className="rounded-full h-9 px-5 text-sm"
-                    onClick={() => {
-                      setSellQty(1);
-                      // OPRAVA: Ak supply.priceEur neexistuje (null/undefined), použi 450
-                      setSellPrice(supply?.priceEur ?? 450); 
-                      setSellSheetOpen(true);
-                    }}
-                    disabled={tokensActive.length === 0}
-                  >
-                    Zalistovať
-                  </Button>
-                </CardContent>
-              </Card>
+
+                    <div className="flex flex-col items-end gap-1">
+                      <Button
+                        variant="outline"
+                        className="rounded-full h-9 px-5 text-sm"
+                        onClick={() => {
+                          setSellQty(1);
+                          setSellPrice(supply?.priceEur ?? 450); 
+                          setSellSheetOpen(true);
+                        }}
+                        // Tlačidlo je vypnuté, ak nie je žiadny CELÝ token
+                        disabled={tokensActive.length === 0}
+                      >
+                        Zalistovať
+                      </Button>
+                      
+                      {/* Upozornenie, ak má používateľ minúty, ale žiadny celý token */}
+                      {balance && balance.totalMinutes > 0 && tokensActive.length === 0 && (
+                        <span className="text-[9px] text-orange-500 font-medium">
+                          Iba celé tokeny (60m)
+                        </span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
 
               {/* =============================== */}
 
