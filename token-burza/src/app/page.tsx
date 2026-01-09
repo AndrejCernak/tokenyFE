@@ -458,9 +458,37 @@ const fetchCallLogs = useCallback(async () => {
 }, [role, fetchSupply, getToken]);
 
 
-  function handleCancelListing(id: string): void {
-    throw new Error("Function not implemented.");
+  const handleCancelListing = useCallback(async (listingId: string) => {
+  if (!confirm("Naozaj chcete stiahnuť tento token z predaja?")) return;
+
+  try {
+    const jwt = await getToken();
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.cancel_listing`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Clerk-Authorization": `Bearer ${jwt}`,
+        },
+        body: JSON.stringify({ listingId }),
+      }
+    );
+
+    const data = await res.json();
+    
+    // Frappe vracia dáta v objekte 'message'
+    if (data?.message?.success) {
+      // Refreshneme balanc (aby naskočili minúty) aj burzu (aby zmizol riadok)
+      await Promise.all([fetchBalance(), fetchListings()]);
+    } else {
+      alert(data?.message?.error || "Nepodarilo sa zrušiť inzerát.");
+    }
+  } catch (e) {
+    console.error("Chyba pri rušení:", e);
+    alert("Nastala chyba pri komunikácii so serverom.");
   }
+}, [getToken, fetchBalance, fetchListings]);
  
   // ==================== RENDER ====================
   return (
@@ -649,28 +677,28 @@ const fetchCallLogs = useCallback(async () => {
                                 {Number(l.priceEur).toFixed(2)} €
                               </span>
                               {user?.id === l.sellerId ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="rounded-full text-xs"
-                                  onClick={() => handleCancelListing(l.id)}
-                                >
-                                  Zrušiť
-                                </Button>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  className="rounded-full bg-black hover:bg-black/85 text-white text-xs"
-                                  disabled={buyingId === l.id}
-                                  onClick={() => {
-                                    setSelectedListing(l);
-                                    setBuyFromTreasury(false);
-                                    setBuySheetOpen(true);
-                                  }}
-                                >
-                                  {buyingId === l.id ? "Kupujem…" : "Kúpiť"}
-                                </Button>
-                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="rounded-full text-xs border-red-200 text-red-600 hover:bg-red-50"
+                                onClick={() => handleCancelListing(l.id)} // Tu sa volá nová funkcia
+                              >
+                                Zrušiť predaj
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                className="rounded-full bg-black hover:bg-black/85 text-white text-xs"
+                                disabled={buyingId === l.id}
+                                onClick={() => {
+                                  setSelectedListing(l);
+                                  setBuyFromTreasury(false);
+                                  setBuySheetOpen(true);
+                                }}
+                              >
+                                {buyingId === l.id ? "Kupujem…" : "Kúpiť"}
+                              </Button>
+                            )}
                             </div>
                           </div>
                         ))
