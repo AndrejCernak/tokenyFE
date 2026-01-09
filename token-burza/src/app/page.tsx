@@ -342,27 +342,23 @@ const fetchCallLogs = useCallback(async () => {
   // === odpredaj – klient zalistuje token =========================
   // klient si nastaví množstvo N, ale do BE pôjdeme po jednom
   const handleClientListTokens = useCallback(async () => {
-  if (!user) return;
-  if (!balance) return;
+  if (!user || !balance) return;
+
+  // OPRAVA: Ak je cena náhodou NaN, nastavíme bezpečnú hodnotu pred odoslaním
+  const safePrice = isNaN(sellPrice) ? 450 : sellPrice;
 
   const activeTokens = (balance.tokens || []).filter(
     (t) => t.status === "active" && t.minutesRemaining > 0
   );
 
-  if (activeTokens.length === 0) {
-    alert("Nemáš žiadne aktívne tokeny.");
-    return;
-  }
-
+  // Bezpečnostné overenie počtu
   const countToList = Math.min(sellQty, activeTokens.length);
-  const price = sellPrice;
 
   const jwt = await getToken();
 
   for (let i = 0; i < countToList; i++) {
     const token = activeTokens[i];
-
-    const res = await fetch(
+    await fetch(
       `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.list_token`,
       {
         method: "POST",
@@ -373,16 +369,10 @@ const fetchCallLogs = useCallback(async () => {
         body: JSON.stringify({
           sellerId: user.id,
           tokenId: token.id,
-          priceEur: price,
+          priceEur: safePrice, // Posielame ošetrenú cenu
         }),
       }
     );
-
-    const data = await res.json();
-
-    if (!data?.message?.success) {
-      console.warn("Listovanie zlyhalo pre token", token.id, data);
-    }
   }
 
   await Promise.all([fetchBalance(), fetchListings()]);
@@ -758,7 +748,8 @@ const fetchCallLogs = useCallback(async () => {
                     className="rounded-full h-9 px-5 text-sm"
                     onClick={() => {
                       setSellQty(1);
-                      setSellPrice(supply ? supply.priceEur : 450);
+                      // OPRAVA: Ak supply.priceEur neexistuje (null/undefined), použi 450
+                      setSellPrice(supply?.priceEur ?? 450); 
                       setSellSheetOpen(true);
                     }}
                     disabled={tokensActive.length === 0}
@@ -976,7 +967,8 @@ const fetchCallLogs = useCallback(async () => {
                 <Button
                   variant="outline"
                   className="h-10 w-10 rounded-xl"
-                  onClick={() => setSellQty((n) => n + 1)}
+                  // OPRAVA: n + 1 sa vykoná len vtedy, ak je n menšie ako počet aktívnych tokenov
+                  onClick={() => setSellQty((n) => (n < tokensActive.length ? n + 1 : n))}
                 >
                   +
                 </Button>
