@@ -603,7 +603,7 @@ const fetchCallLogs = useCallback(async () => {
                             <span className="text-sm font-semibold tracking-tight">
                               {supply.priceEur.toFixed(2)} €
                             </span>
-                           {/* <Button
+                            <Button
                               size="sm"
                               className="rounded-full bg-black text-white text-xs"
                               onClick={() => {
@@ -614,7 +614,7 @@ const fetchCallLogs = useCallback(async () => {
                             >
                               Kúpiť
                             </Button>
-                            */}
+                            
 
                           </div>
                         </div>
@@ -904,7 +904,7 @@ const fetchCallLogs = useCallback(async () => {
             </div>
           </div>
           <div className="mt-6 flex flex-col gap-3">
-            {/*<Button
+            <Button
               variant="default"
               className="w-full rounded-xl"
               onClick={() => {
@@ -922,7 +922,7 @@ const fetchCallLogs = useCallback(async () => {
             >
               Kúpiť
             </Button>
-            */}
+          
              
 
             <SheetClose asChild>
