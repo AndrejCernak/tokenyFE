@@ -673,33 +673,36 @@ const fetchCallLogs = useCallback(async () => {
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold tracking-tight">
-                                {Number(l.priceEur).toFixed(2)} €
-                              </span>
-                              {user?.id === l.sellerId ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="rounded-full text-xs border-red-200 text-red-600 hover:bg-red-50"
-                                onClick={() => handleCancelListing(l.id)} // Tu sa volá nová funkcia
-                              >
-                                Zrušiť predaj
-                              </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                className="rounded-full bg-black hover:bg-black/85 text-white text-xs"
-                                disabled={buyingId === l.id}
-                                onClick={() => {
-                                  setSelectedListing(l);
-                                  setBuyFromTreasury(false);
-                                  setBuySheetOpen(true);
-                                }}
-                              >
-                                {buyingId === l.id ? "Kupujem…" : "Kúpiť"}
-                              </Button>
-                            )}
-                            </div>
+  <span className="text-sm font-semibold tracking-tight">
+    {Number(l.priceEur).toFixed(2)} €
+  </span>
+
+  {/* Ak je predávajúci Andrej Černák (podľa tvojho mena v Clerk), zobrazí sa Zrušiť */}
+  {(user?.fullName === l.sellerId || user?.id === l.sellerId) ? (
+    <Button
+      size="sm"
+      variant="outline"
+      className="rounded-full text-xs border-red-200 text-red-600 hover:bg-red-50"
+      onClick={() => handleCancelListing(l.id)}
+    >
+      Zrušiť predaj
+    </Button>
+  ) : (
+    /* Ak je to niekto iný, zobrazí sa Kúpiť */
+    <Button
+      size="sm"
+      className="rounded-full bg-black hover:bg-black/85 text-white text-xs"
+      disabled={buyingId === l.id}
+      onClick={() => {
+        setSelectedListing(l);
+        setBuyFromTreasury(false);
+        setBuySheetOpen(true);
+      }}
+    >
+      {buyingId === l.id ? "Kupujem…" : "Kúpiť"}
+    </Button>
+  )}
+</div>
                           </div>
                         ))
                       )}
