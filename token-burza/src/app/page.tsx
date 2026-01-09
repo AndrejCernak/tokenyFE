@@ -676,29 +676,37 @@ const fetchCallLogs = useCallback(async () => {
                               <span className="text-sm font-semibold tracking-tight">
                                 {Number(l.priceEur).toFixed(2)} €
                               </span>
-                              {user?.id === l.sellerId ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="rounded-full text-xs border-red-200 text-red-600 hover:bg-red-50"
-                                onClick={() => handleCancelListing(l.id)} // Tu sa volá nová funkcia
-                              >
-                                Zrušiť predaj
-                              </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                className="rounded-full bg-black hover:bg-black/85 text-white text-xs"
-                                disabled={buyingId === l.id}
-                                onClick={() => {
-                                  setSelectedListing(l);
-                                  setBuyFromTreasury(false);
-                                  setBuySheetOpen(true);
-                                }}
-                              >
-                                {buyingId === l.id ? "Kupujem…" : "Kúpiť"}
-                              </Button>
-                            )}
+                              <div className="flex items-center gap-2">
+  <span className="text-sm font-semibold tracking-tight">
+    {Number(l.priceEur).toFixed(2)} €
+  </span>
+
+  {/* 1. TLAČIDLO KÚPIŤ - zobrazí sa vždy, ale pre majiteľa bude disabled (nemôže kúpiť vlastné) */}
+  <Button
+    size="sm"
+    className="rounded-full bg-black hover:bg-black/85 text-white text-xs"
+    disabled={buyingId === l.id || user?.id === l.sellerId}
+    onClick={() => {
+      setSelectedListing(l);
+      setBuyFromTreasury(false);
+      setBuySheetOpen(true);
+    }}
+  >
+    {buyingId === l.id ? "Kupujem…" : "Kúpiť"}
+  </Button>
+
+  {/* 2. TLAČIDLO ZRUŠIŤ - pridá sa vedľa LEN ak si majiteľ */}
+  {user?.id === l.sellerId && (
+    <Button
+      size="sm"
+      variant="outline"
+      className="rounded-full text-xs border-red-200 text-red-600 hover:bg-red-50"
+      onClick={() => handleCancelListing(l.id)}
+    >
+      Zrušiť
+    </Button>
+  )}
+</div>
                             </div>
                           </div>
                         ))
