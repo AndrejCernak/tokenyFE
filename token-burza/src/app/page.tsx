@@ -59,6 +59,7 @@ type SupplyInfo = {
   totalSold: number;
 };
 
+
 type Listing = {
   id: string;
   tokenId: string;
@@ -660,7 +661,7 @@ const fetchCallLogs = useCallback(async () => {
                               ) : (
                                 <Button
                                   size="sm"
-                                  className="rounded-full bg-black hover:bg-black/85 text-xs"
+                                  className="rounded-full bg-black hover:bg-black/85 text-white text-xs"
                                   disabled={buyingId === l.id}
                                   onClick={() => {
                                     setSelectedListing(l);
