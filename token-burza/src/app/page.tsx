@@ -554,8 +554,9 @@ const fetchCallLogs = useCallback(async () => {
         </div>
 
         <SignedIn>
-        <Tabs defaultValue="burza" className="space-y-5">
+        <Tabs defaultValue="moje" className="space-y-5">
           <TabsList className="bg-transparent p-0 gap-3">
+            {/*
             <TabsTrigger
               value="burza"
               className="rounded-full bg-black text-white px-6 py-2 text-sm 
@@ -564,6 +565,8 @@ const fetchCallLogs = useCallback(async () => {
             >
               Burza tokenov
             </TabsTrigger>
+            */}
+
 
             {/* klientská sekcia - Moje tokeny aj Hovory patria sem */}
             {role !== "admin" && (
@@ -599,117 +602,117 @@ const fetchCallLogs = useCallback(async () => {
           </TabsList>
 
             {/* ============ TAB 1: BURZA – IBA BURZA ============ */}
-            <TabsContent value="burza">
-              <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
-                <CardHeader className="flex-row items-center justify-between space-y-0">
-                  <div>
-                    <CardTitle className="text-lg font-semibold">
-                      Burza tokenov
-                    </CardTitle>
+           
+          {/*
+<TabsContent value="burza">
+  <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
+    <CardHeader className="flex-row items-center justify-between space-y-0">
+      <div>
+        <CardTitle className="text-lg font-semibold">
+          Burza tokenov
+        </CardTitle>
+      </div>
+    </CardHeader>
+    <CardContent className="pt-0">
+      <ScrollArea className="h-[520px] pr-2">
+        <div className="flex flex-col gap-3 pt-3">
+
+          {supply && supply.treasuryAvailable > 0 && (
+            <div className="flex items-center justify-between bg-[#f3f3f3] rounded-2xl px-3 py-3">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center border border-neutral-200 text-xs">
+                  🕒
+                </div>
+                <div className="flex flex-col leading-tight">
+                  <span className="text-sm font-medium">
+                    Token {supply.year}
+                  </span>
+                  <span className="text-xs text-neutral-400">
+                    {supply.treasuryAvailable} dostupných v pokladnici
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold tracking-tight">
+                  {supply.priceEur.toFixed(2)} €
+                </span>
+                <Button
+                  size="sm"
+                  className="rounded-full bg-black text-white text-xs"
+                  onClick={() => {
+                    setBuyFromTreasury(true);
+                    setBuySheetOpen(true);
+                  }}
+                  disabled={maxCanBuy <= 0}
+                >
+                  Kúpiť
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {listings.length === 0 ? (
+            <p className="text-sm text-neutral-400">
+              Žiadne otvorené ponuky.
+            </p>
+          ) : (
+            listings.map((l) => (
+              <div
+                key={l.id}
+                className="flex items-center justify-between bg-[#f3f3f3] rounded-2xl px-3 py-3"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center border border-neutral-200 text-xs">
+                    🕒
                   </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <ScrollArea className="h-[520px] pr-2">
-                    <div className="flex flex-col gap-3 pt-3">
-                      {/* 1) najprv tokeny z pokladnice (admin vygenerované) */}
-                      {supply && supply.treasuryAvailable > 0 && (
-                        <div className="flex items-center justify-between bg-[#f3f3f3] rounded-2xl px-3 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center border border-neutral-200 text-xs">
-                              🕒
-                            </div>
-                            <div className="flex flex-col leading-tight">
-                              <span className="text-sm font-medium">
-                                Token {supply.year}
-                              </span>
-                              <span className="text-xs text-neutral-400">
-                                {supply.treasuryAvailable} dostupných v pokladnici
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold tracking-tight">
-                              {supply.priceEur.toFixed(2)} €
-                            </span>
-                            <Button
-                              size="sm"
-                              className="rounded-full bg-black text-white text-xs"
-                              onClick={() => {
-                                setBuyFromTreasury(true);
-                                setBuySheetOpen(true);
-                              }}
-                              disabled={maxCanBuy <= 0}
-                            >
-                              Kúpiť
-                            </Button>
-                            
+                  <div className="flex flex-col leading-tight">
+                    <span className="text-sm font-medium">
+                      Token {l.token?.issuedYear ?? ""}
+                    </span>
+                    <span className="text-xs text-neutral-400">
+                      {l.token?.id?.slice(0, 12) ?? l.tokenId}…
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold tracking-tight">
+                    {Number(l.priceEur).toFixed(2)} €
+                  </span>
 
-                          </div>
-                        </div>
-                      )}
+                  {user?.fullName === l.sellerId ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full text-xs border-red-200 text-red-600 hover:bg-red-50"
+                      onClick={() => handleCancelListing(l.id)}
+                    >
+                      Zrušiť predaj
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      className="rounded-full bg-black hover:bg-black/85 text-white text-xs"
+                      disabled={buyingId === l.id}
+                      onClick={() => {
+                        setSelectedListing(l);
+                        setBuyFromTreasury(false);
+                        setBuySheetOpen(true);
+                      }}
+                    >
+                      {buyingId === l.id ? "Kupujem…" : "Kúpiť"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </ScrollArea>
+    </CardContent>
+  </Card>
+</TabsContent>
+*/}
 
-                      {/* 2) potom všetky listingy (user aj admin) */}
-                      {listings.length === 0 ? (
-                        <p className="text-sm text-neutral-400">
-                          Žiadne otvorené ponuky.
-                        </p>
-                      ) : (
-                        listings.map((l) => (
-                          <div
-                            key={l.id}
-                            className="flex items-center justify-between bg-[#f3f3f3] rounded-2xl px-3 py-3"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center border border-neutral-200 text-xs">
-                                🕒
-                              </div>
-                              <div className="flex flex-col leading-tight">
-                                <span className="text-sm font-medium">
-                                  Token {l.token?.issuedYear ?? ""}
-                                </span>
-                                <span className="text-xs text-neutral-400">
-                                  {l.token?.id?.slice(0, 12) ?? l.tokenId}…
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-  <span className="text-sm font-semibold tracking-tight">
-    {Number(l.priceEur).toFixed(2)} €
-  </span>
-
-  {/* Porovnávame meno z Clerku s menom z backendu */}
-{user?.fullName === l.sellerId ? (
-  <Button
-    size="sm"
-    variant="outline"
-    className="rounded-full text-xs border-red-200 text-red-600 hover:bg-red-50"
-    onClick={() => handleCancelListing(l.id)}
-  >
-    Zrušiť predaj
-  </Button>
-) : (
-  <Button
-    size="sm"
-    className="rounded-full bg-black hover:bg-black/85 text-white text-xs"
-    disabled={buyingId === l.id}
-    onClick={() => {
-      setSelectedListing(l);
-      setBuyFromTreasury(false);
-      setBuySheetOpen(true);
-    }}
-  >
-    {buyingId === l.id ? "Kupujem…" : "Kúpiť"}
-  </Button>
-)}
-</div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            </TabsContent>
             {/* ============ TAB: HOVORY ============ */}
             {role !== "admin" && (
               <TabsContent value="hovory">
@@ -774,6 +777,7 @@ const fetchCallLogs = useCallback(async () => {
                     </div>
 
                     <div className="flex flex-col items-end gap-1">
+                      {/*
                       <Button
                         variant="outline"
                         className="rounded-full h-9 px-5 text-sm"
@@ -782,11 +786,11 @@ const fetchCallLogs = useCallback(async () => {
                           setSellPrice(supply?.priceEur ?? 450); 
                           setSellSheetOpen(true);
                         }}
-                        // Tlačidlo je vypnuté, ak nie je žiadny CELÝ token
                         disabled={tokensActive.length === 0}
                       >
                         Zalistovať
                       </Button>
+                      */}
                       
                       {/* Upozornenie, ak má používateľ minúty, ale žiadny celý token */}
                       {balance && balance.totalMinutes > 0 && tokensActive.length === 0 && (
