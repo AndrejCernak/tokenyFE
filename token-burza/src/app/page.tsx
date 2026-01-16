@@ -77,14 +77,17 @@ type HistoryItem = {
   year: number;
   createdAt: string | Date;
 };
-type CallLog = {
+interface CallLog {
   name: string;
+  volajuci: string;
+  poradca: string;
   zaciatok_datum: string;
-  koniec_datum: string;
+  zaciatok_cas: string;   
+  koniec_datum: string | null;
+  koniec_cas: string | null;      
   trvanie_s: number;
-  pouzity_token: string;
-};
-
+  pouzity_token: string | null;
+}
 
 function BurzaTokenovInner() {
   const { user, isSignedIn } = useUser();
