@@ -713,47 +713,59 @@ const fetchCallLogs = useCallback(async () => {
 </TabsContent>
 */}
 
-            {/* ============ TAB: HOVORY ============ */}
-            {role !== "admin" && (
-              <TabsContent value="hovory">
-                <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-base font-semibold">Záznam hovorov</CardTitle>
-                    <p className="text-xs text-neutral-400">Prehľad uskutočnených hovorov a čerpanie tokenov.</p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-[1fr,1fr,80px,100px] text-[10px] uppercase tracking-wider text-neutral-400 pb-2 border-b">
-                      <span>Začiatok</span>
-                      <span>Koniec</span>
-                      <span className="text-center">Trvanie</span>
-                      <span className="text-right">Token</span>
-                    </div>
-                    <ScrollArea className="h-[400px]">
-                      {callLogs.length === 0 ? (
-                        <div className="py-10 text-center text-sm text-neutral-400">Žiadne záznamy o hovoroch</div>
-                      ) : (
-                        callLogs.map((log) => (
-                          <div key={log.name} className="grid grid-cols-[1fr,1fr,80px,100px] items-center py-4 text-sm border-b last:border-0">
-                            <span className="text-neutral-700">
-                              {new Date(log.zaciatok_datum).toLocaleString("sk-SK")}
-                            </span>
-                            <span className="text-neutral-700">
-                              {new Date(log.koniec_datum).toLocaleString("sk-SK")}
-                            </span>
-                            <span className="text-center font-medium">
-                              {Math.floor(log.trvanie_s / 60)}m {log.trvanie_s % 60}s
-                            </span>
-                            <span className="text-right text-xs font-mono text-neutral-500">
-                              {log.pouzity_token ? log.pouzity_token.slice(-6) : "---"}
-                            </span>
-                          </div>
-                        ))
-                      )}
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            )}
+          {/* ============ TAB: HOVORY ============ */}
+{role !== "admin" && (
+  <TabsContent value="hovory">
+    <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
+      <CardHeader>
+        <CardTitle className="text-base font-semibold">Záznam hovorov</CardTitle>
+        <p className="text-xs text-neutral-400">Prehľad uskutočnených hovorov a čerpanie tokenov.</p>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-[1fr,1fr,80px,100px] text-[10px] uppercase tracking-wider text-neutral-400 pb-2 border-b">
+          <span>Začiatok</span>
+          <span>Koniec</span>
+          <span className="text-center">Trvanie</span>
+          <span className="text-right">Token</span>
+        </div>
+        <ScrollArea className="h-[400px]">
+          {callLogs.length === 0 ? (
+            <div className="py-10 text-center text-sm text-neutral-400">Žiadne záznamy o hovoroch</div>
+          ) : (
+            // ODSTRÁNENÁ ZBYTOČNÁ ZÁTVORKA TU
+            callLogs.map((log) => {
+              // Spojíme dátum a čas do jedného reťazca pre správny parsing
+              const startDateTime = log.zaciatok_datum && log.zaciatok_cas 
+                ? new Date(`${log.zaciatok_datum}T${log.zaciatok_cas}`) 
+                : null;
+
+              const endDateTime = log.koniec_datum && log.koniec_cas 
+                ? new Date(`${log.koniec_datum}T${log.koniec_cas}`) 
+                : null;
+
+              return (
+                <div key={log.name} className="grid grid-cols-[1fr,1fr,80px,100px] items-center py-4 text-sm border-b last:border-0">
+                  <span className="text-neutral-700">
+                    {startDateTime ? startDateTime.toLocaleString("sk-SK") : "---"}
+                  </span>
+                  <span className="text-neutral-700">
+                    {endDateTime ? endDateTime.toLocaleString("sk-SK") : "Prebieha..."}
+                  </span>
+                  <span className="text-center font-medium">
+                    {Math.floor(log.trvanie_s / 60)}m {log.trvanie_s % 60}s
+                  </span>
+                  <span className="text-right text-xs font-mono text-neutral-500">
+                    {log.pouzity_token ? log.pouzity_token.slice(-6) : "---"}
+                  </span>
+                </div>
+              );
+            }) // ODSTRÁNENÁ ZBYTOČNÁ ZÁTVORKA TU
+          )}
+        </ScrollArea>
+      </CardContent>
+    </Card>
+  </TabsContent>
+)}
   
             {/* TAB 2: MOJE TOKENY */}
             {role !== "admin" && (
