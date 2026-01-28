@@ -77,18 +77,19 @@ type HistoryItem = {
   year: number;
   createdAt: string | Date;
 };
+// Nájdi niečo takéto a doplň to:
 interface CallLog {
-  name: string;
-  volajuci: string;
-  poradca: string;
-  zaciatok_datum: string;
-  zaciatok_cas: string;   
-  koniec_datum: string | null;
-  koniec_cas: string | null;      
-  trvanie_s: number;
-  pouzity_token: string | null;
+    name: string;
+    klient: string;
+    poradca: string;
+    kto_volal: "Klient" | "Poradca"; // <--- PRIDAŤ TOTO
+    zaciatok_datum: string;
+    zaciatok_cas: string;
+    koniec_datum?: string;
+    koniec_cas?: string;
+    trvanie_s?: number;
+    pouzity_token?: string;
 }
-
 function BurzaTokenovInner() {
   const { user, isSignedIn } = useUser();
   const { getToken } = useAuth();
