@@ -77,12 +77,13 @@ type HistoryItem = {
   year: number;
   createdAt: string | Date;
 };
-// Nájdi niečo takéto a doplň to:
+
+// --- OPRAVENÝ INTERFACE PRE CALL LOG ---
 interface CallLog {
     name: string;
-    klient: string;
+    klient: string;      
     poradca: string;
-    kto_volal: "Klient" | "Poradca"; // <--- PRIDAŤ TOTO
+    kto_volal: "Klient" | "Poradca"; // Pridané nové pole
     zaciatok_datum: string;
     zaciatok_cas: string;
     koniec_datum?: string;
@@ -90,6 +91,7 @@ interface CallLog {
     trvanie_s?: number;
     pouzity_token?: string;
 }
+
 function BurzaTokenovInner() {
   const { user, isSignedIn } = useUser();
   const { getToken } = useAuth();
@@ -99,7 +101,6 @@ function BurzaTokenovInner() {
   const role = (user?.publicMetadata.role as string) || "client";
 
   const backend = process.env.NEXT_PUBLIC_BACKEND_URL!;
-  // nahrad starú backend premennú
   const frappeBase = `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api`;
 
   const currentYear = useMemo(() => new Date().getFullYear(), []);
@@ -114,54 +115,52 @@ function BurzaTokenovInner() {
   const [mintPrice, setMintPrice] = useState<number>(450);
   const [mintYear, setMintYear] = useState<number>(currentYear);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  
+  // State pre hovory
   const [callLogs, setCallLogs] = useState<CallLog[]>([]);
 
-
-
+  // --- FETCH HISTORY ---
   const fetchHistory = useCallback(async () => {
-  if (!user) return;
-
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.history?userId=${user.id}`
-  );
-
-  const data = await res.json();
-  const msg = data?.message;
-
-  if (msg?.success && Array.isArray(msg.items)) {
-    setHistory(
-      msg.items.map((tx: HistoryItem) => ({
-        ...tx,
-        createdAt: new Date(tx.createdAt),
-      }))
-    );
-  }
-}, [user]);
-
-const fetchCallLogs = useCallback(async () => {
-  if (!user) return;
-  try {
+    if (!user) return;
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.call_logs?userId=${user.id}`
+      `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.history?userId=${user.id}`
     );
     const data = await res.json();
-    if (data?.message?.success) {
-      setCallLogs(data.message.items);
+    const msg = data?.message;
+
+    if (msg?.success && Array.isArray(msg.items)) {
+      setHistory(
+        msg.items.map((tx: HistoryItem) => ({
+          ...tx,
+          createdAt: new Date(tx.createdAt),
+        }))
+      );
     }
-  } catch (e) {
-    console.error("Chyba pri načítaní hovorov:", e);
-  }
-}, [user]);
+  }, [user]);
+
+  // --- FETCH CALL LOGS (OPRAVENÉ) ---
+  const fetchCallLogs = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.call_logs?userId=${user.id}`
+      );
+      const data = await res.json();
+      if (data?.message?.success) {
+        setCallLogs(data.message.items);
+      }
+    } catch (e) {
+      console.error("Chyba pri načítaní hovorov:", e);
+    }
+  }, [user]);
 
   useEffect(() => {
-  if (isSignedIn && role !== "admin") {
-    fetchHistory();
-    fetchCallLogs(); // Spustí načítanie hovorov
-  }
-}, [isSignedIn, role, fetchHistory, fetchCallLogs]);
+    if (isSignedIn && role !== "admin") {
+      fetchHistory();
+      fetchCallLogs(); // Spustí načítanie hovorov
+    }
+  }, [isSignedIn, role, fetchHistory, fetchCallLogs]);
 
-
-  
 
   // drawer – kúpa
   const [buySheetOpen, setBuySheetOpen] = useState(false);
@@ -176,11 +175,10 @@ const fetchCallLogs = useCallback(async () => {
   const [sellQty, setSellQty] = useState<number>(1);
 
   // === odvodené ===
-  // Nájdi tento blok (okolo riadku 175) a uprav ho:
   const tokensActive = useMemo(
     () =>
       (balance?.tokens || []).filter(
-        (t) => t.status === "active" && t.minutesRemaining === 60 // ZMENA: z > 0 na === 60
+        (t) => t.status === "active" && t.minutesRemaining === 60 
       ),
     [balance]
   );
@@ -204,43 +202,41 @@ const fetchCallLogs = useCallback(async () => {
   }, [backend, currentYear]);
 
   const fetchBalance = useCallback(async () => {
-  if (!user) return;
+    if (!user) return;
 
-  const jwt = await getToken();
-  const base = process.env.NEXT_PUBLIC_FRAPPE_URL;
+    const jwt = await getToken();
+    const base = process.env.NEXT_PUBLIC_FRAPPE_URL;
 
-  const res = await fetch(
-    `${base}/api/method/bcservices.api.user.balance?userId=${user.id}`,
-    {
-      headers: {
-        "X-Clerk-Authorization": `Bearer ${jwt}`,
-      },
+    const res = await fetch(
+      `${base}/api/method/bcservices.api.user.balance?userId=${user.id}`,
+      {
+        headers: {
+          "X-Clerk-Authorization": `Bearer ${jwt}`,
+        },
+      }
+    );
+
+    const data = await res.json();
+    const msg = data?.message; 
+
+    if (msg?.userId) {
+      setBalance({
+        userId: msg.userId,
+        totalMinutes: msg.totalMinutes,
+        tokens: msg.tokens,
+      });
     }
-  );
-
-  const data = await res.json();
-  const msg = data?.message; // 🔥 Frappe wrapper
-
-  if (msg?.userId) {
-    setBalance({
-      userId: msg.userId,
-      totalMinutes: msg.totalMinutes,
-      tokens: msg.tokens,
-    });
-  }
-}, [user, getToken]);
+  }, [user, getToken]);
 
   const fetchListings = useCallback(async () => {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.listings`);
-  const data = await res.json();
+    const res = await fetch(`${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.listings`);
+    const data = await res.json();
+    const msg = data?.message;
 
-  // Frappe always wraps return dict in `message`
-  const msg = data?.message;
-
-  if (msg?.success) {
-    setListings(msg.items);
-  }
-}, []);
+    if (msg?.success) {
+      setListings(msg.items);
+    }
+  }, []);
 
   // sync user
   useEffect(() => {
@@ -265,15 +261,8 @@ const fetchCallLogs = useCallback(async () => {
   useEffect(() => {
     fetchSupply();
     fetchListings();
-  if (isSignedIn && role !== "admin") fetchBalance();
+    if (isSignedIn && role !== "admin") fetchBalance();
   }, [isSignedIn, fetchSupply, fetchBalance, fetchListings]);
-
-  const authHeaders = useCallback(async () => {
-    return {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${await getToken()}`,
-    };
-  }, [getToken]);
 
   // === nákup z pokladnice (1 token) ======================
   const handlePrimaryBuy = useCallback(
@@ -346,168 +335,156 @@ const fetchCallLogs = useCallback(async () => {
   }, [searchStatus, router, fetchBalance, fetchListings, fetchSupply]);
 
   // === odpredaj – klient zalistuje token =========================
-  // klient si nastaví množstvo N, ale do BE pôjdeme po jednom
   const handleClientListTokens = useCallback(async () => {
-  if (!user || !balance) return;
+    if (!user || !balance) return;
 
-  const safePrice = isNaN(sellPrice) ? 450 : sellPrice;
+    const safePrice = isNaN(sellPrice) ? 450 : sellPrice;
 
-  // Tu tiež filtrujeme len tie 60-minútové
-  const sellableTokens = (balance.tokens || []).filter(
-    (t) => t.status === "active" && t.minutesRemaining === 60
-  );
+    const sellableTokens = (balance.tokens || []).filter(
+      (t) => t.status === "active" && t.minutesRemaining === 60
+    );
 
-  const countToList = Math.min(sellQty, sellableTokens.length);
-  const jwt = await getToken();
+    const countToList = Math.min(sellQty, sellableTokens.length);
+    const jwt = await getToken();
 
-  for (let i = 0; i < countToList; i++) {
-    const token = sellableTokens[i]; // Berieme zo zoznamu validných
-    await fetch(
-      `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.list_token`,
+    for (let i = 0; i < countToList; i++) {
+      const token = sellableTokens[i]; 
+      await fetch(
+        `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.list_token`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Clerk-Authorization": `Bearer ${jwt}`,
+          },
+          body: JSON.stringify({
+            sellerId: user.id,
+            tokenId: token.id,
+            priceEur: safePrice,
+          }),
+        }
+      );
+    }
+
+    await Promise.all([fetchBalance(), fetchListings()]);
+    setSellSheetOpen(false);
+  }, [user, balance, sellQty, sellPrice, fetchBalance, fetchListings, getToken]);
+
+
+  // === admin akcie =============================
+  const handleAdminMint = useCallback(async () => {
+    if (role !== "admin") return;
+
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.admin.admin_mint`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Clerk-Authorization": `Bearer ${jwt}`,
+          "X-Clerk-Authorization": `Bearer ${await getToken()}`,
         },
         body: JSON.stringify({
-          sellerId: user.id,
-          tokenId: token.id,
-          priceEur: safePrice,
+          quantity: mintQty,
+          priceEur: mintPrice,
+          year: mintYear,
         }),
-      }
-    );
-  }
-
-  await Promise.all([fetchBalance(), fetchListings()]);
-  setSellSheetOpen(false);
-}, [user, balance, sellQty, sellPrice, fetchBalance, fetchListings, getToken]);
-
-
-  // === admin akcie (nechávam) =============================
-  const handleAdminMint = useCallback(async () => {
-  if (role !== "admin") return;
-
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.admin.admin_mint`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Clerk-Authorization": `Bearer ${await getToken()}`,
-      },
-      body: JSON.stringify({
-        quantity: mintQty,
-        priceEur: mintPrice,
-        year: mintYear,
-      }),
-    }
-  );
-
-  const data = await res.json();
-
-  if (res.ok && data?.message?.success) {
-    setStatusMessage(`Vytvorených ${mintQty} tokenov pre rok ${mintYear}.`);
-    setTimeout(() => setStatusMessage(null), 3500);
-
-    await fetchSupply();
-    setMintSheetOpen(false);
-  } else {
-    setStatusMessage("Mint zlyhal.");
-    setTimeout(() => setStatusMessage(null), 3500);
-  }
-}, [role, mintQty, mintPrice, mintYear, fetchSupply, getToken]);
-
-
-
-
-  const handleAdminSetPrice = useCallback(async () => {
-  if (role !== "admin") return;
-
-  const priceStr = prompt("Nová cena v pokladnici (€):");
-  const price = Number((priceStr || "").replace(",", "."));
-
-  if (!Number.isFinite(price) || price <= 0) {
-    setStatusMessage("Neplatná cena.");
-    setTimeout(() => setStatusMessage(null), 3500);
-    return;
-  }
-
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.admin.admin_set_price`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Clerk-Authorization": `Bearer ${await getToken()}`,
-      },
-      body: JSON.stringify({
-        newPrice: price,
-        repriceTreasury: false,
-      }),
-    }
-  );
-
-  const data = await res.json();
-
-  if (res.ok && data?.message?.success) {
-    setStatusMessage(`Cena nastavená na ${price.toFixed(2)} €.`);
-    setTimeout(() => setStatusMessage(null), 3500);
-
-    await fetchSupply();
-  } else {
-    setStatusMessage("Zmena ceny zlyhala.");
-    setTimeout(() => setStatusMessage(null), 3500);
-  }
-}, [role, fetchSupply, getToken]);
-
-
-  const handleCancelListing = useCallback(async (listingId: string) => {
-  if (!confirm("Naozaj chcete stiahnuť tento token z predaja?")) return;
-
-  try {
-    const jwt = await getToken();
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.cancel_listing`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Clerk-Authorization": `Bearer ${jwt}`,
-        },
-        body: JSON.stringify({ listingId }),
       }
     );
 
     const data = await res.json();
-    
-    // Frappe vracia dáta v objekte 'message'
-    if (data?.message?.success) {
-      // Refreshneme balanc (aby naskočili minúty) aj burzu (aby zmizol riadok)
-      await Promise.all([fetchBalance(), fetchListings()]);
+
+    if (res.ok && data?.message?.success) {
+      setStatusMessage(`Vytvorených ${mintQty} tokenov pre rok ${mintYear}.`);
+      setTimeout(() => setStatusMessage(null), 3500);
+
+      await fetchSupply();
+      setMintSheetOpen(false);
     } else {
-      alert(data?.message?.error || "Nepodarilo sa zrušiť inzerát.");
+      setStatusMessage("Mint zlyhal.");
+      setTimeout(() => setStatusMessage(null), 3500);
     }
-  } catch (e) {
-    console.error("Chyba pri rušení:", e);
-    alert("Nastala chyba pri komunikácii so serverom.");
-  }
-}, [getToken, fetchBalance, fetchListings]);
+  }, [role, mintQty, mintPrice, mintYear, fetchSupply, getToken]);
+
+
+  const handleAdminSetPrice = useCallback(async () => {
+    if (role !== "admin") return;
+
+    const priceStr = prompt("Nová cena v pokladnici (€):");
+    const price = Number((priceStr || "").replace(",", "."));
+
+    if (!Number.isFinite(price) || price <= 0) {
+      setStatusMessage("Neplatná cena.");
+      setTimeout(() => setStatusMessage(null), 3500);
+      return;
+    }
+
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.admin.admin_set_price`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Clerk-Authorization": `Bearer ${await getToken()}`,
+        },
+        body: JSON.stringify({
+          newPrice: price,
+          repriceTreasury: false,
+        }),
+      }
+    );
+
+    const data = await res.json();
+
+    if (res.ok && data?.message?.success) {
+      setStatusMessage(`Cena nastavená na ${price.toFixed(2)} €.`);
+      setTimeout(() => setStatusMessage(null), 3500);
+
+      await fetchSupply();
+    } else {
+      setStatusMessage("Zmena ceny zlyhala.");
+      setTimeout(() => setStatusMessage(null), 3500);
+    }
+  }, [role, fetchSupply, getToken]);
+
+
+  const handleCancelListing = useCallback(async (listingId: string) => {
+    if (!confirm("Naozaj chcete stiahnuť tento token z predaja?")) return;
+
+    try {
+      const jwt = await getToken();
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api.market.cancel_listing`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Clerk-Authorization": `Bearer ${jwt}`,
+          },
+          body: JSON.stringify({ listingId }),
+        }
+      );
+
+      const data = await res.json();
+      
+      if (data?.message?.success) {
+        await Promise.all([fetchBalance(), fetchListings()]);
+      } else {
+        alert(data?.message?.error || "Nepodarilo sa zrušiť inzerát.");
+      }
+    } catch (e) {
+      console.error("Chyba pri rušení:", e);
+      alert("Nastala chyba pri komunikácii so serverom.");
+    }
+  }, [getToken, fetchBalance, fetchListings]);
  
   // ==================== RENDER ====================
   return (
     <main className="min-h-screen bg-white">
       {statusMessage && (
-  <div className="
-    fixed top-4 left-1/2 -translate-x-1/2 
-    bg-black text-white text-sm
-    px-5 py-3 rounded-full shadow-lg
-    animate-fade-in
-    z-50
-  ">
-    {statusMessage}
-  </div>
-)}
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-black text-white text-sm px-5 py-3 rounded-full shadow-lg animate-fade-in z-50">
+          {statusMessage}
+        </div>
+      )}
 
       {/* sticky header */}
       <header className="sticky top-0 z-30 w-full bg-white border-b border-neutral-200">
@@ -560,19 +537,8 @@ const fetchCallLogs = useCallback(async () => {
         <SignedIn>
         <Tabs defaultValue="moje" className="space-y-5">
           <TabsList className="bg-transparent p-0 gap-3">
-            {/*
-            <TabsTrigger
-              value="burza"
-              className="rounded-full bg-black text-white px-6 py-2 text-sm 
-                data-[state=inactive]:bg-white data-[state=inactive]:text-neutral-900 
-                border border-transparent data-[state=inactive]:border-neutral-200"
-            >
-              Burza tokenov
-            </TabsTrigger>
-            */}
-
-
-            {/* klientská sekcia - Moje tokeny aj Hovory patria sem */}
+            
+            {/* klientská sekcia */}
             {role !== "admin" && (
               <>
                 <TabsTrigger
@@ -605,177 +571,78 @@ const fetchCallLogs = useCallback(async () => {
             )}
           </TabsList>
 
-            {/* ============ TAB 1: BURZA – IBA BURZA ============ */}
-           
-          {/*
-<TabsContent value="burza">
-  <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
-    <CardHeader className="flex-row items-center justify-between space-y-0">
-      <div>
-        <CardTitle className="text-lg font-semibold">
-          Burza tokenov
-        </CardTitle>
-      </div>
-    </CardHeader>
-    <CardContent className="pt-0">
-      <ScrollArea className="h-[520px] pr-2">
-        <div className="flex flex-col gap-3 pt-3">
-
-          {supply && supply.treasuryAvailable > 0 && (
-            <div className="flex items-center justify-between bg-[#f3f3f3] rounded-2xl px-3 py-3">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center border border-neutral-200 text-xs">
-                  🕒
-                </div>
-                <div className="flex flex-col leading-tight">
-                  <span className="text-sm font-medium">
-                    Token {supply.year}
-                  </span>
-                  <span className="text-xs text-neutral-400">
-                    {supply.treasuryAvailable} dostupných v pokladnici
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold tracking-tight">
-                  {supply.priceEur.toFixed(2)} €
-                </span>
-                <Button
-                  size="sm"
-                  className="rounded-full bg-black text-white text-xs"
-                  onClick={() => {
-                    setBuyFromTreasury(true);
-                    setBuySheetOpen(true);
-                  }}
-                  disabled={maxCanBuy <= 0}
-                >
-                  Kúpiť
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {listings.length === 0 ? (
-            <p className="text-sm text-neutral-400">
-              Žiadne otvorené ponuky.
-            </p>
-          ) : (
-            listings.map((l) => (
-              <div
-                key={l.id}
-                className="flex items-center justify-between bg-[#f3f3f3] rounded-2xl px-3 py-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center border border-neutral-200 text-xs">
-                    🕒
+          {/* ============ TAB: HOVORY (OPRAVENÝ RENDER) ============ */}
+          {role !== "admin" && (
+            <TabsContent value="hovory">
+              <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-base font-semibold">Záznam hovorov</CardTitle>
+                  <p className="text-xs text-neutral-400">Prehľad uskutočnených hovorov a čerpanie tokenov.</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-[1fr,1fr,80px,100px] text-[10px] uppercase tracking-wider text-neutral-400 pb-2 border-b">
+                    <span>Začiatok</span>
+                    <span>Koniec</span>
+                    <span className="text-center">Trvanie</span>
+                    <span className="text-right">Token</span>
                   </div>
-                  <div className="flex flex-col leading-tight">
-                    <span className="text-sm font-medium">
-                      Token {l.token?.issuedYear ?? ""}
-                    </span>
-                    <span className="text-xs text-neutral-400">
-                      {l.token?.id?.slice(0, 12) ?? l.tokenId}…
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold tracking-tight">
-                    {Number(l.priceEur).toFixed(2)} €
-                  </span>
+                  <ScrollArea className="h-[400px]">
+                    {callLogs.length === 0 ? (
+                      <div className="py-10 text-center text-sm text-neutral-400">Žiadne záznamy o hovoroch</div>
+                    ) : (
+                      callLogs.map((log) => {
+                        // Vytvorenie dátumov
+                        const startDateTime = log.zaciatok_datum && log.zaciatok_cas 
+                            ? new Date(`${log.zaciatok_datum}T${log.zaciatok_cas}`)
+                            : null;
+                            
+                        const endDateTime = log.koniec_datum && log.koniec_cas 
+                            ? new Date(`${log.koniec_datum}T${log.koniec_cas}`) 
+                            : null;
 
-                  {user?.fullName === l.sellerId ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="rounded-full text-xs border-red-200 text-red-600 hover:bg-red-50"
-                      onClick={() => handleCancelListing(l.id)}
-                    >
-                      Zrušiť predaj
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      className="rounded-full bg-black hover:bg-black/85 text-white text-xs"
-                      disabled={buyingId === l.id}
-                      onClick={() => {
-                        setSelectedListing(l);
-                        setBuyFromTreasury(false);
-                        setBuySheetOpen(true);
-                      }}
-                    >
-                      {buyingId === l.id ? "Kupujem…" : "Kúpiť"}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))
+                        // Určenie smeru hovoru (pre Klienta)
+                        const isOutgoing = log.kto_volal === "Klient";
+
+                        return (
+                          <div key={log.name} className="grid grid-cols-[1fr,1fr,80px,100px] items-center py-4 text-sm border-b last:border-0 relative">
+                            {/* Dátumy */}
+                            <span className="text-neutral-700">
+                              {startDateTime ? startDateTime.toLocaleString("sk-SK") : "?"}
+                            </span>
+                            <span className="text-neutral-700">
+                              {endDateTime ? endDateTime.toLocaleString("sk-SK") : <span className="text-green-600 animate-pulse">Prebieha...</span>}
+                            </span>
+                            
+                            {/* Trvanie */}
+                            <span className="text-center font-medium">
+                              {log.trvanie_s ? `${Math.floor(log.trvanie_s / 60)}m ${log.trvanie_s % 60}s` : "--"}
+                            </span>
+                            
+                            {/* Token */}
+                            <span className="text-right text-xs font-mono text-neutral-500">
+                              {log.pouzity_token ? log.pouzity_token.slice(-6) : "---"}
+                            </span>
+
+                            {/* DETAIL HOVORU (Smer a meno) */}
+                            <div className="col-span-4 mt-1 flex items-center gap-2 text-[11px] text-neutral-500">
+                                <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-medium", isOutgoing ? "bg-blue-50 text-blue-700" : "bg-orange-50 text-orange-700")}>
+                                    {isOutgoing ? "↘ Volali ste" : "↙ Volal vám"}
+                                </span>
+                                <span>
+                                    {isOutgoing ? `poradcovi: ${log.poradca}` : `poradca: ${log.poradca}`}
+                                </span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </TabsContent>
           )}
-        </div>
-      </ScrollArea>
-    </CardContent>
-  </Card>
-</TabsContent>
-*/}
-
-{/* ============ TAB: HOVORY ============ */}
-{role !== "admin" && (
-  <TabsContent value="hovory">
-    <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-base font-semibold">Záznam hovorov</CardTitle>
-        <p className="text-xs text-neutral-400">Prehľad uskutočnených hovorov a čerpanie tokenov.</p>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-[1fr,1fr,80px,100px] text-[10px] uppercase tracking-wider text-neutral-400 pb-2 border-b">
-          <span>Začiatok</span>
-          <span>Koniec</span>
-          <span className="text-center">Trvanie</span>
-          <span className="text-right">Token</span>
-        </div>
-        {/* ============ TAB: HOVORY ============ */}
-<ScrollArea className="h-[400px]">
-  {callLogs.length === 0 ? (
-    <div className="py-10 text-center text-sm text-neutral-400">Žiadne záznamy o hovoroch</div>
-  ) : (
-    callLogs.map((log) => {
-      // Používame priamo polia z Frappe JSONu
-      const startStr = `${log.zaciatok_datum}T${log.zaciatok_cas}`;
-      const startDateTime = new Date(startStr);
-      
-      // Ošetrenie konca hovoru (ak neexistuje, nehavarujeme)
-      const endDateTime = (log.koniec_datum && log.koniec_cas) 
-        ? new Date(`${log.koniec_datum}T${log.koniec_cas}`) 
-        : null;
-
-      return (
-        <div key={log.name} className="grid grid-cols-[1fr,1fr,80px,100px] items-center py-4 text-sm border-b last:border-0">
-          <span className="text-neutral-700">
-            {startDateTime.toLocaleString("sk-SK")}
-          </span>
-          <span className="text-neutral-700">
-            {endDateTime ? endDateTime.toLocaleString("sk-SK") : "Prebieha..."}
-          </span>
-          <span className="text-center font-medium">
-            {log.trvanie_s ? `${Math.floor(log.trvanie_s / 60)}m ${log.trvanie_s % 60}s` : "--"}
-          </span>
-          <span className="text-right text-xs font-mono text-neutral-500">
-            {log.pouzity_token ? log.pouzity_token.slice(-6) : "---"}
-          </span>
-          {/* Bonus: Zobrazenie smeru */}
-          <div className="text-[10px] text-neutral-400 col-span-4 mt-1">
-             Smer: {log.kto_volal} | Poradca: {log.poradca}
-          </div>
-        </div>
-      );
-    })
-  )}
-</ScrollArea>
-      </CardContent>
-    </Card>
-  </TabsContent>
-)}
   
-            {/* TAB 2: MOJE TOKENY */}
+          {/* TAB 2: MOJE TOKENY */}
             {role !== "admin" && (
               <TabsContent value="moje" className="space-y-5">
                 <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
@@ -790,7 +657,6 @@ const fetchCallLogs = useCallback(async () => {
                         </span>
                         <span className="text-sm text-neutral-400">h</span>
                       </div>
-                      {/* Dynamický text podľa toho, či sú tokeny celé alebo načaté */}
                       <p className="text-xs text-neutral-400 mt-1">
                         {tokensActive.length} pripravených na predaj
                       </p>
@@ -812,7 +678,6 @@ const fetchCallLogs = useCallback(async () => {
                       </Button>
                       */}
                       
-                      {/* Upozornenie, ak má používateľ minúty, ale žiadny celý token */}
                       {balance && balance.totalMinutes > 0 && tokensActive.length === 0 && (
                         <span className="text-[9px] text-orange-500 font-medium">
                           Iba celé tokeny (60m)
@@ -821,8 +686,6 @@ const fetchCallLogs = useCallback(async () => {
                     </div>
                   </CardContent>
                 </Card>
-
-              {/* =============================== */}
 
               {/* História transakcií */}
               <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
@@ -852,12 +715,10 @@ const fetchCallLogs = useCallback(async () => {
                             key={tx.id}
                             className="grid grid-cols-[80px,1fr,90px] items-center py-3 text-sm border-b last:border-b-0"
                           >
-                            {/* dátum */}
                             <span className="text-neutral-500">
                               {new Date(tx.createdAt).toLocaleDateString("sk-SK")}
                             </span>
 
-                            {/* typ transakcie */}
                             <div className="flex flex-col leading-tight">
                               <span className="font-medium text-neutral-800">
                                 {tx.type === "purchase"
@@ -871,7 +732,6 @@ const fetchCallLogs = useCallback(async () => {
                               </span>
                             </div>
 
-                            {/* cena */}
                             <span
                               className={`text-right font-semibold ${
                                 tx.direction === "sell"
@@ -893,7 +753,6 @@ const fetchCallLogs = useCallback(async () => {
             
             )}
             {/* TAB 3 — ADMIN PANEL (iba admin) */}
-          {/* =============================== */}
           {role === "admin" && (
             <TabsContent value="admin" className="space-y-5">
               <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
@@ -986,8 +845,6 @@ const fetchCallLogs = useCallback(async () => {
               Kúpiť
             </Button>
           
-             
-
             <SheetClose asChild>
               <Button
                 variant="outline"
@@ -1030,7 +887,6 @@ const fetchCallLogs = useCallback(async () => {
                 <Button
                   variant="outline"
                   className="h-10 w-10 rounded-xl"
-                  // OPRAVA: n + 1 sa vykoná len vtedy, ak je n menšie ako počet aktívnych tokenov
                   onClick={() => setSellQty((n) => (n < tokensActive.length ? n + 1 : n))}
                 >
                   +
@@ -1073,6 +929,109 @@ const fetchCallLogs = useCallback(async () => {
                 Pridať na burzu
               </Button>
 
+              <SheetClose asChild>
+                <Button
+                  variant="outline"
+                  className="w-full rounded-xl border-neutral-200"
+                >
+                  Zrušiť
+                </Button>
+              </SheetClose>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ===== DRAWER: ADMIN MINT ===== */}
+      <Sheet open={mintSheetOpen} onOpenChange={setMintSheetOpen}>
+        <SheetContent
+          side="bottom"
+          className="rounded-t-3xl px-6 py-6 max-w-md mx-auto"
+        >
+          <SheetHeader className="items-center">
+            <div className="w-16 h-1.5 bg-neutral-200 rounded-full mb-4" />
+            <SheetTitle>Mintovanie tokenov</SheetTitle>
+          </SheetHeader>
+
+          <div className="mt-6 space-y-6">
+            {/* Počet tokenov */}
+            <div className="flex flex-col gap-2">
+              <p className="text-xs text-neutral-400">Počet tokenov</p>
+              <div className="flex items-center gap-3 justify-center">
+                <Button
+                  variant="outline"
+                  className="h-10 w-10 rounded-xl"
+                  onClick={() => setMintQty((n) => Math.max(1, n - 1))}
+                >
+                  –
+                </Button>
+                <span className="text-xl font-semibold">{mintQty}</span>
+                <Button
+                  variant="outline"
+                  className="h-10 w-10 rounded-xl"
+                  onClick={() => setMintQty((n) => n + 1)}
+                >
+                  +
+                </Button>
+              </div>
+            </div>
+
+            {/* Cena */}
+            <div className="flex flex-col gap-2">
+              <p className="text-xs text-neutral-400">Cena (€)</p>
+              <div className="flex items-center gap-3 justify-center">
+                <Button
+                  variant="outline"
+                  className="h-10 w-10 rounded-xl"
+                  onClick={() => setMintPrice((p) => Math.max(1, p - 10))}
+                >
+                  –
+                </Button>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-semibold">{mintPrice}</span>
+                  <span className="text-sm text-neutral-500">€</span>
+                </div>
+                <Button
+                  variant="outline"
+                  className="h-10 w-10 rounded-xl"
+                  onClick={() => setMintPrice((p) => p + 10)}
+                >
+                  +
+                </Button>
+              </div>
+            </div>
+
+            {/* Rok */}
+            <div className="flex flex-col gap-2">
+              <p className="text-xs text-neutral-400">Rok</p>
+              <div className="flex items-center gap-3 justify-center">
+                <Button
+                  variant="outline"
+                  className="h-10 w-10 rounded-xl"
+                  onClick={() => setMintYear((y) => y - 1)}
+                >
+                  –
+                </Button>
+                <span className="text-xl font-semibold">{mintYear}</span>
+                <Button
+                  variant="outline"
+                  className="h-10 w-10 rounded-xl"
+                  onClick={() => setMintYear((y) => y + 1)}
+                >
+                  +
+                </Button>
+              </div>
+            </div>
+
+            {/* Potvrdiť */}
+            <div className="flex flex-col gap-3">
+              <Button
+                variant="outline"
+                className={cn("w-full rounded-xl", role === "admin" && "border-neutral-200")}
+                onClick={handleAdminMint}
+              >
+                Vytvoriť tokeny
+              </Button>
 
               <SheetClose asChild>
                 <Button
@@ -1086,109 +1045,6 @@ const fetchCallLogs = useCallback(async () => {
           </div>
         </SheetContent>
       </Sheet>
-      {/* ===== DRAWER: ADMIN MINT ===== */}
-<Sheet open={mintSheetOpen} onOpenChange={setMintSheetOpen}>
-  <SheetContent
-    side="bottom"
-    className="rounded-t-3xl px-6 py-6 max-w-md mx-auto"
-  >
-    <SheetHeader className="items-center">
-      <div className="w-16 h-1.5 bg-neutral-200 rounded-full mb-4" />
-      <SheetTitle>Mintovanie tokenov</SheetTitle>
-    </SheetHeader>
-
-    <div className="mt-6 space-y-6">
-      {/* Počet tokenov */}
-      <div className="flex flex-col gap-2">
-        <p className="text-xs text-neutral-400">Počet tokenov</p>
-        <div className="flex items-center gap-3 justify-center">
-          <Button
-            variant="outline"
-            className="h-10 w-10 rounded-xl"
-            onClick={() => setMintQty((n) => Math.max(1, n - 1))}
-          >
-            –
-          </Button>
-          <span className="text-xl font-semibold">{mintQty}</span>
-          <Button
-            variant="outline"
-            className="h-10 w-10 rounded-xl"
-            onClick={() => setMintQty((n) => n + 1)}
-          >
-            +
-          </Button>
-        </div>
-      </div>
-
-      {/* Cena */}
-      <div className="flex flex-col gap-2">
-        <p className="text-xs text-neutral-400">Cena (€)</p>
-        <div className="flex items-center gap-3 justify-center">
-          <Button
-            variant="outline"
-            className="h-10 w-10 rounded-xl"
-            onClick={() => setMintPrice((p) => Math.max(1, p - 10))}
-          >
-            –
-          </Button>
-          <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-semibold">{mintPrice}</span>
-            <span className="text-sm text-neutral-500">€</span>
-          </div>
-          <Button
-            variant="outline"
-            className="h-10 w-10 rounded-xl"
-            onClick={() => setMintPrice((p) => p + 10)}
-          >
-            +
-          </Button>
-        </div>
-      </div>
-
-      {/* Rok */}
-      <div className="flex flex-col gap-2">
-        <p className="text-xs text-neutral-400">Rok</p>
-        <div className="flex items-center gap-3 justify-center">
-          <Button
-            variant="outline"
-            className="h-10 w-10 rounded-xl"
-            onClick={() => setMintYear((y) => y - 1)}
-          >
-            –
-          </Button>
-          <span className="text-xl font-semibold">{mintYear}</span>
-          <Button
-            variant="outline"
-            className="h-10 w-10 rounded-xl"
-            onClick={() => setMintYear((y) => y + 1)}
-          >
-            +
-          </Button>
-        </div>
-      </div>
-
-      {/* Potvrdiť */}
-      <div className="flex flex-col gap-3">
-        <Button
-          variant="outline"
-          className={cn("w-full rounded-xl", role === "admin" && "border-neutral-200")}
-          onClick={handleAdminMint}
-        >
-          Vytvoriť tokeny
-        </Button>
-
-        <SheetClose asChild>
-          <Button
-            variant="outline"
-            className="w-full rounded-xl border-neutral-200"
-          >
-            Zrušiť
-          </Button>
-        </SheetClose>
-      </div>
-    </div>
-  </SheetContent>
-</Sheet>
 
     </main>
   );
