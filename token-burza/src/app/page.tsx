@@ -740,21 +740,21 @@ const fetchCallLogs = useCallback(async () => {
               .filter(log => log.zaciatok_datum && log.zaciatok_cas && log.koniec_datum && log.koniec_cas)
               .map((log) => {
                 const startDateTime = new Date(`${log.zaciatok_datum}T${log.zaciatok_cas}`);
-                const endDateTime = new Date(`${log.koniec_datum}T${log.koniec_cas}`);
-
+                const endDateTime = log.koniec_datum && log.koniec_cas 
+                    ? new Date(`${log.koniec_datum}T${log.koniec_cas}`) 
+                    : null;
+                
                 return (
-                  <div key={log.name} className="grid grid-cols-[1fr,1fr,80px,100px] items-center py-4 text-sm border-b last:border-0">
-                    <span className="text-neutral-700">
-                      {startDateTime.toLocaleString("sk-SK")}
+                  <div key={log.name} className="...">
+                    <span>{startDateTime.toLocaleString("sk-SK")}</span>
+                    <span>{endDateTime ? endDateTime.toLocaleString("sk-SK") : "Prebieha..."}</span>
+                    <span className="text-center">
+                       {/* Ak hovor ešte neskončil, trvanie_s je null */}
+                       {log.trvanie_s ? `${Math.floor(log.trvanie_s / 60)}m ${log.trvanie_s % 60}s` : "--"}
                     </span>
-                    <span className="text-neutral-700">
-                      {endDateTime.toLocaleString("sk-SK")}
-                    </span>
-                    <span className="text-center font-medium">
-                      {Math.floor(log.trvanie_s / 60)}m {log.trvanie_s % 60}s
-                    </span>
-                    <span className="text-right text-xs font-mono text-neutral-500">
-                      {log.pouzity_token ? log.pouzity_token.slice(-6) : "---"}
+                    {/* Zobrazenie kto volal (Andrej alebo Beata) */}
+                    <span className="text-right">
+                       {log.kto_volal === "Klient" ? "↘ odchádzajúci" : "↙ prichádzajúci"}
                     </span>
                   </div>
                 );
