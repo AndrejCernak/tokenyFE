@@ -732,36 +732,44 @@ const fetchCallLogs = useCallback(async () => {
           <span className="text-center">Trvanie</span>
           <span className="text-right">Token</span>
         </div>
-        <ScrollArea className="h-[400px]">
-          {callLogs.length === 0 ? (
-            <div className="py-10 text-center text-sm text-neutral-400">Žiadne záznamy o hovoroch</div>
-          ) : (
-            // FILTROVANIE: Zobrazíme len tie, ktoré majú začiatok aj koniec
-            callLogs
-              .filter(log => log.zaciatok_datum && log.zaciatok_cas && log.koniec_datum && log.koniec_cas)
-              .map((log) => {
-                const startDateTime = new Date(`${log.zaciatok_datum}T${log.zaciatok_cas}`);
-                const endDateTime = log.koniec_datum && log.koniec_cas 
-                    ? new Date(`${log.koniec_datum}T${log.koniec_cas}`) 
-                    : null;
-                
-                return (
-                  <div key={log.name} className="...">
-                    <span>{startDateTime.toLocaleString("sk-SK")}</span>
-                    <span>{endDateTime ? endDateTime.toLocaleString("sk-SK") : "Prebieha..."}</span>
-                    <span className="text-center">
-                       {/* Ak hovor ešte neskončil, trvanie_s je null */}
-                       {log.trvanie_s ? `${Math.floor(log.trvanie_s / 60)}m ${log.trvanie_s % 60}s` : "--"}
-                    </span>
-                    {/* Zobrazenie kto volal (Andrej alebo Beata) */}
-                    <span className="text-right">
-                       {log.kto_volal === "Klient" ? "↘ odchádzajúci" : "↙ prichádzajúci"}
-                    </span>
-                  </div>
-                );
-              })
-          )}
-        </ScrollArea>
+        {/* ============ TAB: HOVORY ============ */}
+<ScrollArea className="h-[400px]">
+  {callLogs.length === 0 ? (
+    <div className="py-10 text-center text-sm text-neutral-400">Žiadne záznamy o hovoroch</div>
+  ) : (
+    callLogs.map((log) => {
+      // Používame priamo polia z Frappe JSONu
+      const startStr = `${log.zaciatok_datum}T${log.zaciatok_cas}`;
+      const startDateTime = new Date(startStr);
+      
+      // Ošetrenie konca hovoru (ak neexistuje, nehavarujeme)
+      const endDateTime = (log.koniec_datum && log.koniec_cas) 
+        ? new Date(`${log.koniec_datum}T${log.koniec_cas}`) 
+        : null;
+
+      return (
+        <div key={log.name} className="grid grid-cols-[1fr,1fr,80px,100px] items-center py-4 text-sm border-b last:border-0">
+          <span className="text-neutral-700">
+            {startDateTime.toLocaleString("sk-SK")}
+          </span>
+          <span className="text-neutral-700">
+            {endDateTime ? endDateTime.toLocaleString("sk-SK") : "Prebieha..."}
+          </span>
+          <span className="text-center font-medium">
+            {log.trvanie_s ? `${Math.floor(log.trvanie_s / 60)}m ${log.trvanie_s % 60}s` : "--"}
+          </span>
+          <span className="text-right text-xs font-mono text-neutral-500">
+            {log.pouzity_token ? log.pouzity_token.slice(-6) : "---"}
+          </span>
+          {/* Bonus: Zobrazenie smeru */}
+          <div className="text-[10px] text-neutral-400 col-span-4 mt-1">
+             Smer: {log.kto_volal} | Poradca: {log.poradca}
+          </div>
+        </div>
+      );
+    })
+  )}
+</ScrollArea>
       </CardContent>
     </Card>
   </TabsContent>
