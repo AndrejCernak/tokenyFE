@@ -1,6 +1,6 @@
 import "./globals.css";
-import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
+import { FrappeAuthProvider } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Burza piatkových tokenov",
@@ -13,12 +13,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider>
-      <html lang="sk">
-        <body className="min-h-screen bg-white text-neutral-900 antialiased">
-          {children}
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="sk">
+      <body className="min-h-screen bg-white text-neutral-900 antialiased">
+        <FrappeAuthProvider>{children}</FrappeAuthProvider>
+      </body>
+    </html>
   );
 }
