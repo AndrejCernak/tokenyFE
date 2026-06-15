@@ -7,7 +7,6 @@ import {
   useState,
   Suspense,
 } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 
 import { useFrappeAuth } from "@/lib/auth";
 import { LoginForm } from "@/components/LoginForm";
@@ -19,7 +18,6 @@ import {
   TabsTrigger,
   TabsContent,
 } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -45,24 +43,6 @@ type FridayBalance = {
   tokens: FridayToken[];
 };
 
-type SupplyInfo = {
-  year: number;
-  priceEur: number;
-  treasuryAvailable: number;
-  totalMinted: number;
-  totalSold: number;
-};
-
-
-type Listing = {
-  id: string;
-  tokenId: string;
-  sellerId: string;
-  priceEur: number;
-  status: "open" | "sold" | "cancelled";
-  createdAt: string;
-  token: FridayToken;
-};
 type HistoryItem = {
   id: string;
   type: "purchase" | "trade";
@@ -72,12 +52,11 @@ type HistoryItem = {
   createdAt: string | Date;
 };
 
-// --- OPRAVENÝ INTERFACE PRE CALL LOG ---
 interface CallLog {
     name: string;
     klient: string;
     poradca: string;
-    kto_volal: "Klient" | "Poradca"; // Pridané nové pole
+    kto_volal: "Klient" | "Poradca";
     zaciatok_datum: string;
     zaciatok_cas: string;
     koniec_datum?: string;
@@ -88,22 +67,16 @@ interface CallLog {
 
 function BurzaTokenovInner() {
   const { user, isSignedIn, ready, token, signOut } = useFrappeAuth();
-  const router = useRouter();
-  const search = useSearchParams();
 
   // poradca = admin práva (mint/cena); klient = klientske taby
   const role = user?.role === "advisor" ? "admin" : "client";
   const email = user?.email ?? null;
 
-  const backend = process.env.NEXT_PUBLIC_BACKEND_URL!;
   const frappeBase = `${process.env.NEXT_PUBLIC_FRAPPE_URL}/api/method/bcservices.api`;
 
   const currentYear = useMemo(() => new Date().getFullYear(), []);
-  const [supply, setSupply] = useState<SupplyInfo | null>(null);
 
   const [balance, setBalance] = useState<FridayBalance | null>(null);
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [qty, setQty] = useState<number>(1);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [mintSheetOpen, setMintSheetOpen] = useState(false);
   const [mintQty, setMintQty] = useState<number>(1);
@@ -111,10 +84,23 @@ function BurzaTokenovInner() {
   const [mintYear, setMintYear] = useState<number>(currentYear);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  // State pre hovory
   const [callLogs, setCallLogs] = useState<CallLog[]>([]);
 
-  // --- FETCH HISTORY ---
+  // drawer – odpredaj
+  const [sellSheetOpen, setSellSheetOpen] = useState(false);
+  const [sellPrice, setSellPrice] = useState<number>(450);
+  const [sellQty, setSellQty] = useState<number>(1);
+
+  // === odvodené ===
+  const tokensActive = useMemo(
+    () =>
+      (balance?.tokens || []).filter(
+        (t) => t.status === "active" && t.minutesRemaining === 60
+      ),
+    [balance]
+  );
+
+  // === FETCHY ========================================================
   const fetchHistory = useCallback(async () => {
     if (!email) return;
     const res = await fetch(
@@ -133,7 +119,6 @@ function BurzaTokenovInner() {
     }
   }, [email, frappeBase]);
 
-  // --- FETCH CALL LOGS (OPRAVENÉ) ---
   const fetchCallLogs = useCallback(async () => {
     if (!email) return;
     try {
@@ -148,53 +133,6 @@ function BurzaTokenovInner() {
       console.error("Chyba pri načítaní hovorov:", e);
     }
   }, [email, frappeBase]);
-
-  useEffect(() => {
-    if (isSignedIn && role !== "admin") {
-      fetchHistory();
-      fetchCallLogs(); // Spustí načítanie hovorov
-    }
-  }, [isSignedIn, role, fetchHistory, fetchCallLogs]);
-
-
-  // drawer – kúpa
-  const [buySheetOpen, setBuySheetOpen] = useState(false);
-  const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
-  const [buyingId, setBuyingId] = useState<string | null>(null);
-  // či kupujem z pokladnice
-  const [buyFromTreasury, setBuyFromTreasury] = useState(false);
-
-  // drawer – odpredaj
-  const [sellSheetOpen, setSellSheetOpen] = useState(false);
-  const [sellPrice, setSellPrice] = useState<number>(450);
-  const [sellQty, setSellQty] = useState<number>(1);
-
-  // === odvodené ===
-  const tokensActive = useMemo(
-    () =>
-      (balance?.tokens || []).filter(
-        (t) => t.status === "active" && t.minutesRemaining === 60
-      ),
-    [balance]
-  );
-
-  const ownedThisYear = useMemo(
-    () =>
-      (balance?.tokens || []).filter(
-        (t) =>
-          t.issuedYear === currentYear &&
-          (t.status === "active" || t.status === "listed")
-      ).length,
-    [balance, currentYear]
-  );
-  const maxCanBuy = Math.max(0, 20 - ownedThisYear);
-
-  // === FETCHY ========================================================
-  const fetchSupply = useCallback(async () => {
-    const res = await fetch(`${backend}/friday/supply?year=${currentYear}`);
-    const data = (await res.json()) as SupplyInfo;
-    setSupply(data);
-  }, [backend, currentYear]);
 
   const fetchBalance = useCallback(async () => {
     if (!email) return;
@@ -220,110 +158,13 @@ function BurzaTokenovInner() {
     }
   }, [email, token, frappeBase]);
 
-  const fetchListings = useCallback(async () => {
-    const res = await fetch(`${frappeBase}.market.listings`);
-    const data = await res.json();
-    const msg = data?.message;
-
-    if (msg?.success) {
-      setListings(msg.items);
+  useEffect(() => {
+    if (isSignedIn && role !== "admin") {
+      fetchHistory();
+      fetchCallLogs();
+      fetchBalance();
     }
-  }, [frappeBase]);
-
-  // sync user (Stripe/friday backend)
-  useEffect(() => {
-    const init = async () => {
-      if (!isSignedIn || !email) return;
-      try {
-        await fetch(`${backend}/friday/sync-user`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-      } catch (e) {
-        console.error("sync-user FE error:", e);
-      }
-    };
-    init();
-  }, [isSignedIn, email, backend, token]);
-
-  useEffect(() => {
-    fetchSupply();
-    fetchListings();
-    if (isSignedIn && role !== "admin") fetchBalance();
-  }, [isSignedIn, role, fetchSupply, fetchBalance, fetchListings]);
-
-  // === nákup z pokladnice (1 token) ======================
-  const handlePrimaryBuy = useCallback(
-    async (quantity = 1) => {
-      if (!email || !supply) return;
-
-      if (quantity > maxCanBuy) {
-        alert(`Maximálne môžeš dokúpiť ešte ${maxCanBuy} tokenov pre rok ${currentYear}.`);
-        return;
-      }
-      if (quantity > (supply.treasuryAvailable ?? 0)) {
-        alert("Nie je dostatok tokenov v pokladnici.");
-        return;
-      }
-
-      const res = await fetch(`${backend}/friday/payments/checkout/treasury`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: email,
-          quantity,
-          year: currentYear,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && data?.url) {
-        window.location.href = data.url;
-      } else {
-        alert(data?.message || "Vytvorenie platby zlyhalo.");
-      }
-    },
-    [backend, email, supply, maxCanBuy, currentYear]
-  );
-
-  // === nákup z burzy ======================
-  const handleBuyListing = useCallback(
-    async (listingId: string) => {
-      if (!email) return;
-      try {
-        setBuyingId(listingId);
-        const res = await fetch(`${backend}/friday/payments/checkout/listing`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ buyerId: email, listingId }),
-        });
-        const data = await res.json();
-        if (res.ok && data?.url) {
-          window.location.href = data.url;
-        } else {
-          alert(data?.message || "Kúpa zlyhala.");
-        }
-      } finally {
-        setBuyingId(null);
-        setBuySheetOpen(false);
-      }
-    },
-    [backend, email]
-  );
-
-  // === návrat zo Stripe ===================
-  const searchStatus = search.get("payment");
-  useEffect(() => {
-    if (!searchStatus) return;
-    if (searchStatus === "success") {
-      Promise.allSettled([fetchBalance(), fetchSupply(), fetchListings()]);
-    }
-    const url = new URL(window.location.href);
-    url.searchParams.delete("payment");
-    router.replace(url.pathname + url.search, { scroll: false });
-  }, [searchStatus, router, fetchBalance, fetchListings, fetchSupply]);
+  }, [isSignedIn, role, fetchHistory, fetchCallLogs, fetchBalance]);
 
   // === odpredaj – klient zalistuje token =========================
   const handleClientListTokens = useCallback(async () => {
@@ -356,9 +197,9 @@ function BurzaTokenovInner() {
       );
     }
 
-    await Promise.all([fetchBalance(), fetchListings()]);
+    await fetchBalance();
     setSellSheetOpen(false);
-  }, [email, balance, sellQty, sellPrice, fetchBalance, fetchListings, token, frappeBase]);
+  }, [email, balance, sellQty, sellPrice, fetchBalance, token, frappeBase]);
 
 
   // === admin akcie =============================
@@ -386,14 +227,12 @@ function BurzaTokenovInner() {
     if (res.ok && data?.message?.success) {
       setStatusMessage(`Vytvorených ${mintQty} tokenov pre rok ${mintYear}.`);
       setTimeout(() => setStatusMessage(null), 3500);
-
-      await fetchSupply();
       setMintSheetOpen(false);
     } else {
       setStatusMessage("Mint zlyhal.");
       setTimeout(() => setStatusMessage(null), 3500);
     }
-  }, [role, mintQty, mintPrice, mintYear, fetchSupply, token, frappeBase]);
+  }, [role, mintQty, mintPrice, mintYear, token, frappeBase]);
 
 
   const handleAdminSetPrice = useCallback(async () => {
@@ -428,43 +267,11 @@ function BurzaTokenovInner() {
     if (res.ok && data?.message?.success) {
       setStatusMessage(`Cena nastavená na ${price.toFixed(2)} €.`);
       setTimeout(() => setStatusMessage(null), 3500);
-
-      await fetchSupply();
     } else {
       setStatusMessage("Zmena ceny zlyhala.");
       setTimeout(() => setStatusMessage(null), 3500);
     }
-  }, [role, fetchSupply, token, frappeBase]);
-
-
-  const handleCancelListing = useCallback(async (listingId: string) => {
-    if (!confirm("Naozaj chcete stiahnuť tento token z predaja?")) return;
-
-    try {
-      const res = await fetch(
-        `${frappeBase}.market.cancel_listing`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Clerk-Authorization": `Bearer ${token}`,
-          },
-          body: JSON.stringify({ listingId }),
-        }
-      );
-
-      const data = await res.json();
-
-      if (data?.message?.success) {
-        await Promise.all([fetchBalance(), fetchListings()]);
-      } else {
-        alert(data?.message?.error || "Nepodarilo sa zrušiť inzerát.");
-      }
-    } catch (e) {
-      console.error("Chyba pri rušení:", e);
-      alert("Nastala chyba pri komunikácii so serverom.");
-    }
-  }, [token, frappeBase, fetchBalance, fetchListings]);
+  }, [role, token, frappeBase]);
 
   // ==================== AUTH GUARD ====================
   if (!ready) {
@@ -517,16 +324,6 @@ function BurzaTokenovInner() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Tokeny</h1>
           </div>
-          <Button
-            variant="outline"
-            className="hidden"
-            onClick={() => {
-              fetchBalance();
-              fetchListings();
-              fetchSupply();
-            }}
-          >
-          </Button>
         </div>
 
         <Tabs defaultValue="moje" className="space-y-5">
@@ -565,7 +362,7 @@ function BurzaTokenovInner() {
             )}
           </TabsList>
 
-          {/* ============ TAB: HOVORY (OPRAVENÝ RENDER) ============ */}
+          {/* ============ TAB: HOVORY ============ */}
           {role !== "admin" && (
             <TabsContent value="hovory">
               <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
@@ -585,7 +382,6 @@ function BurzaTokenovInner() {
                       <div className="py-10 text-center text-sm text-neutral-400">Žiadne záznamy o hovoroch</div>
                     ) : (
                       callLogs.map((log) => {
-                        // Vytvorenie dátumov
                         const startDateTime = log.zaciatok_datum && log.zaciatok_cas
                             ? new Date(`${log.zaciatok_datum}T${log.zaciatok_cas}`)
                             : null;
@@ -594,12 +390,10 @@ function BurzaTokenovInner() {
                             ? new Date(`${log.koniec_datum}T${log.koniec_cas}`)
                             : null;
 
-                        // Určenie smeru hovoru (pre Klienta)
                         const isOutgoing = log.kto_volal === "Klient";
 
                         return (
                           <div key={log.name} className="grid grid-cols-[1fr,1fr,80px,100px] items-center py-4 text-sm border-b last:border-0 relative">
-                            {/* Dátumy */}
                             <span className="text-neutral-700">
                               {startDateTime ? startDateTime.toLocaleString("sk-SK") : "?"}
                             </span>
@@ -607,17 +401,14 @@ function BurzaTokenovInner() {
                               {endDateTime ? endDateTime.toLocaleString("sk-SK") : <span className="text-green-600 animate-pulse">Prebieha...</span>}
                             </span>
 
-                            {/* Trvanie */}
                             <span className="text-center font-medium">
                               {log.trvanie_s ? `${Math.floor(log.trvanie_s / 60)}m ${log.trvanie_s % 60}s` : "--"}
                             </span>
 
-                            {/* Token */}
                             <span className="text-right text-xs font-mono text-neutral-500">
                               {log.pouzity_token ? log.pouzity_token.slice(-6) : "---"}
                             </span>
 
-                            {/* DETAIL HOVORU (Smer a meno) */}
                             <div className="col-span-4 mt-1 flex items-center gap-2 text-[11px] text-neutral-500">
                                 <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-medium", isOutgoing ? "bg-blue-50 text-blue-700" : "bg-orange-50 text-orange-700")}>
                                     {isOutgoing ? "↘ Volali ste" : "↙ Volal vám"}
@@ -636,7 +427,7 @@ function BurzaTokenovInner() {
             </TabsContent>
           )}
 
-          {/* TAB 2: MOJE TOKENY */}
+          {/* TAB: MOJE TOKENY */}
             {role !== "admin" && (
               <TabsContent value="moje" className="space-y-5">
                 <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
@@ -657,21 +448,6 @@ function BurzaTokenovInner() {
                     </div>
 
                     <div className="flex flex-col items-end gap-1">
-                      {/*
-                      <Button
-                        variant="outline"
-                        className="rounded-full h-9 px-5 text-sm"
-                        onClick={() => {
-                          setSellQty(1);
-                          setSellPrice(supply?.priceEur ?? 450);
-                          setSellSheetOpen(true);
-                        }}
-                        disabled={tokensActive.length === 0}
-                      >
-                        Zalistovať
-                      </Button>
-                      */}
-
                       {balance && balance.totalMinutes > 0 && tokensActive.length === 0 && (
                         <span className="text-[9px] text-orange-500 font-medium">
                           Iba celé tokeny (60m)
@@ -746,19 +522,17 @@ function BurzaTokenovInner() {
             </TabsContent>
 
             )}
-            {/* TAB 3 — ADMIN PANEL (iba admin) */}
+            {/* TAB — ADMIN PANEL (iba admin) */}
           {role === "admin" && (
             <TabsContent value="admin" className="space-y-5">
               <Card className="bg-white border border-neutral-200 rounded-[28px] shadow-sm">
                 <CardHeader>
                   <CardTitle className="text-lg font-semibold">Administrácia tokenov</CardTitle>
-                  <p className="text-xs text-neutral-400">Mintovanie a nastavenia pokladnice.</p>
+                  <p className="text-xs text-neutral-400">Mintovanie a nastavenie ceny pokladnice.</p>
                 </CardHeader>
 
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-4">
                   <div className="text-sm text-neutral-500">
-                    <p>Cena tokenu: <strong>{supply?.priceEur} €</strong></p>
-                    <p>Dostupné v pokladnici: <strong>{supply?.treasuryAvailable ?? 0}</strong></p>
                     <p>Rok: <strong>{currentYear}</strong></p>
                   </div>
 
@@ -767,6 +541,14 @@ function BurzaTokenovInner() {
                     onClick={() => setMintSheetOpen(true)}
                   >
                     🪙 Mintovať tokeny
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-full py-2"
+                    onClick={handleAdminSetPrice}
+                  >
+                    Nastaviť cenu pokladnice
                   </Button>
                 </CardContent>
               </Card>
@@ -779,76 +561,6 @@ function BurzaTokenovInner() {
             Token = právo na 60 min v piatok. Nevyužité tokeny sa prenášajú do ďalšieho roka.
           </p>
       </div>
-
-      {/* ===== DRAWER: KÚPIŤ TOKEN ===== */}
-      <Sheet open={buySheetOpen} onOpenChange={setBuySheetOpen}>
-        <SheetContent
-          side="bottom"
-          className="rounded-t-3xl px-6 py-6 max-w-md mx-auto"
-        >
-          <SheetHeader className="items-center">
-            <div className="w-16 h-1.5 bg-neutral-200 rounded-full mb-4" />
-            <SheetTitle>Kúpiť token</SheetTitle>
-          </SheetHeader>
-          <div className="mt-6 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-neutral-100 border flex items-center justify-center">
-                🕒
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">
-                  Token
-                </span>
-                <span className="text-xs text-neutral-400">
-                  {buyFromTreasury
-                    ? `pokladnica ${currentYear}`
-                    : selectedListing?.token?.id?.slice(0, 12)}
-                  {!buyFromTreasury && selectedListing ? "…" : ""}
-                </span>
-              </div>
-            </div>
-            <div className="text-lg font-semibold tracking-tight">
-              {buyFromTreasury
-                ? supply
-                  ? supply.priceEur.toFixed(2)
-                  : "0.00"
-                : selectedListing
-                ? Number(selectedListing.priceEur).toFixed(2)
-                : "0.00"}{" "}
-              €
-            </div>
-          </div>
-          <div className="mt-6 flex flex-col gap-3">
-            <Button
-              variant="default"
-              className="w-full rounded-xl"
-              onClick={() => {
-                if (buyFromTreasury) {
-                  handlePrimaryBuy(1);
-                } else if (selectedListing) {
-                  handleBuyListing(selectedListing.id);
-                }
-              }}
-              disabled={
-                (!buyFromTreasury && !selectedListing) ||
-                (buyFromTreasury &&
-                  (!supply || (supply?.treasuryAvailable ?? 0) <= 0))
-              }
-            >
-              Kúpiť
-            </Button>
-
-            <SheetClose asChild>
-              <Button
-                variant="outline"
-                className="w-full rounded-xl border-neutral-200"
-              >
-                Zrušiť
-              </Button>
-            </SheetClose>
-          </div>
-        </SheetContent>
-      </Sheet>
 
       {/* ===== DRAWER: ODPREDAŤ TOKEN (CLIENT) ===== */}
       <Sheet open={sellSheetOpen} onOpenChange={setSellSheetOpen}>
